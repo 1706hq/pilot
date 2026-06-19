@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { TauriAppWindowProvider } from "../tauri-controls/contexts/plugin-window";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -13,7 +14,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <TauriAppWindowProvider>{children}</TauriAppWindowProvider>
+      </body>
     </html>
   );
 }

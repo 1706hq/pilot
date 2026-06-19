@@ -1,5 +1,31 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+next-env.d.ts
+
+# Tauri / Rust build output
+src-tauri/target/
+
+# Local Cargo configuration
+.cargo/
+
+# Production / bundler output
+dist/
+dist-ssr/
+build/
+
+# Environment files
+.env
+.env.*
+*.local
+!.env.example
+!.env.*.example
+
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,20 +33,28 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
+# Tests and coverage
+coverage/
+*.lcov
+
+# Caches
+.turbo/
+.vercel/
+.vite/
+.cache/
+*.tsbuildinfo
+
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
 
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
+.idea/
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
-.next/*
-src-tauri/target/*

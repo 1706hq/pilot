@@ -12,9 +12,14 @@
   "app": {
     "windows": [
       {
-        "title": "pilot",
-        "width": 800,
-        "height": 600
+        "title": "lumin",
+        "width": 1280,
+        "height": 860,
+        "decorations": false,
+        "transparent": false,
+        "backgroundColor": "#050506",
+        "minWidth": 480,
+        "minHeight": 360
       }
     ],
     "security": {
