@@ -20,6 +20,7 @@ import { initConfigFromEnv } from "~/pilot/storage/config"
 import { initContext } from "~/pilot/storage/context"
 import { pickGreeting } from "~/pilot/voice/greetings"
 import { useLaunch } from "~/pilot/launch/useLaunch"
+import { UpdatePrompt } from "~/pilot/update/UpdatePrompt"
 import { DevStatePanel } from "~/components/home/dev-state-panel"
 
 /** Smooth opacity reveal used by the staged launch sequence. */
@@ -90,6 +91,7 @@ export default function Home() {
       </div>
 
       <DevStatePanel />
+      <UpdatePrompt />
     </main>
   )
 }
