@@ -1,0 +1,72 @@
+<svg width="1200" height="460" viewBox="0 0 1200 460" fill="none" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <radialGradient id="bg" cx="55%" cy="26%" r="85%">
+      <stop offset="0%" stop-color="#1a4a8a" stop-opacity="0.55"/>
+      <stop offset="34%" stop-color="#0f2a52" stop-opacity="0.5"/>
+      <stop offset="68%" stop-color="#0b1528" stop-opacity="0.7"/>
+      <stop offset="100%" stop-color="#03060d"/>
+    </radialGradient>
+    <radialGradient id="orbBody" cx="42%" cy="40%" r="62%">
+      <stop offset="0%" stop-color="#cfe3ff"/>
+      <stop offset="40%" stop-color="#5b8fe6"/>
+      <stop offset="78%" stop-color="#1f3a66"/>
+      <stop offset="100%" stop-color="#0a1530"/>
+    </radialGradient>
+    <radialGradient id="orbGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#3897ff" stop-opacity="0.55"/>
+      <stop offset="55%" stop-color="#3897ff" stop-opacity="0.16"/>
+      <stop offset="100%" stop-color="#3897ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffd9a8" stop-opacity="0"/>
+      <stop offset="78%" stop-color="#ffb86b" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#ffc27a" stop-opacity="0.9"/>
+    </linearGradient>
+    <filter id="soft" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="9"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="460" fill="#03060d"/>
+  <rect width="1200" height="460" fill="url(#bg)"/>
+
+  <!-- corner brackets -->
+  <g stroke="#7cc0ff" stroke-opacity="0.35" stroke-width="1.5" fill="none">
+    <path d="M24 40 H50 M24 40 V66"/>
+    <path d="M1176 40 H1150 M1176 40 V66"/>
+    <path d="M24 420 H50 M24 420 V394"/>
+    <path d="M1176 420 H1150 M1176 420 V394"/>
+  </g>
+
+  <!-- telemetry strip -->
+  <g font-size="11" letter-spacing="2.2" fill="#9fb4cc" fill-opacity="0.55" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">
+    <circle cx="48" cy="36" r="3" fill="#34d399"/>
+    <text x="60" y="40">ALL SYSTEMS GREEN</text>
+    <text x="980" y="40" fill="#7fe3b8" fill-opacity="0.6">FTSE 8,214 ▲</text>
+    <text x="1100" y="40">GBP/USD</text>
+  </g>
+
+  <!-- radar -->
+  <g transform="translate(600 286)" stroke="#5b9bff" fill="none">
+    <circle r="150" stroke-opacity="0.10" stroke-width="1"/>
+    <circle r="118" stroke-opacity="0.16" stroke-width="1" stroke-dasharray="1.5 7"/>
+    <circle r="86"  stroke-opacity="0.12" stroke-width="1"/>
+    <line x1="-150" y1="0" x2="150" y2="0" stroke-opacity="0.08"/>
+    <line x1="0" y1="-150" x2="0" y2="150" stroke-opacity="0.08"/>
+    <path d="M0 0 L0 -150 A150 150 0 0 1 96 -115 Z" fill="#5b9bff" fill-opacity="0.06"/>
+  </g>
+
+  <!-- orb -->
+  <circle cx="600" cy="286" r="150" fill="url(#orbGlow)" filter="url(#soft)"/>
+  <circle cx="600" cy="286" r="86" fill="url(#orbBody)"/>
+  <circle cx="600" cy="286" r="86" fill="url(#rim)"/>
+  <ellipse cx="578" cy="262" rx="34" ry="22" fill="#eaf2ff" fill-opacity="0.28"/>
+
+  <!-- wordmark -->
+  <text x="600" y="118" text-anchor="middle" font-size="40" font-weight="600" letter-spacing="6" fill="#ffffff" fill-opacity="0.92">
+    P<tspan fill-opacity="0.42">.</tspan>I<tspan fill-opacity="0.42">.</tspan>L<tspan fill-opacity="0.42">.</tspan>O<tspan fill-opacity="0.42">.</tspan>T
+  </text>
+  <text x="600" y="146" text-anchor="middle" font-size="11.5" font-weight="500" letter-spacing="6" fill="#9fb4cc" fill-opacity="0.6">
+    PETER'S INTELLIGENT LIFE OPERATING TERMINAL
+  </text>
+</svg>
