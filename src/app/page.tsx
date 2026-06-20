@@ -7,6 +7,7 @@ import BorderGlow from "~/components/BorderGlow"
 import DarkVeil from "~/components/dark-veil"
 import { AgentsSidebar } from "~/components/home/agents-sidebar"
 import { CornerBrackets, TelemetryTicker, Wordmark } from "~/components/home/hud"
+import { MarketConditions } from "~/components/home/market-conditions"
 import { OutputSidebar } from "~/components/home/output-sidebar"
 import { Radar } from "~/components/home/radar"
 import { ReferenceComposer } from "~/components/home/reference-composer"
@@ -152,6 +153,18 @@ function HomeView({ greeting, phase }: { greeting: Greeting; phase: number }) {
           reveal(phase >= 3)
         )}
       />
+
+      {/* Market conditions (VIX → flying conditions) — ambient telemetry off to
+          the top-right, clear of the centred wordmark. Hidden on narrower
+          windows so it never crowds the wordmark. */}
+      <div
+        className={cn(
+          "absolute right-5 top-[36px] z-30 hidden min-[1160px]:block",
+          reveal(phase >= 3)
+        )}
+      >
+        <MarketConditions />
+      </div>
 
       {/* Orb stage — the radar sweep and idle heartbeat sit BEHIND the orb and
           share its centre, shrinking together once a conversation begins. Click
