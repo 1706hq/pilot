@@ -6,7 +6,9 @@ import { ConversationProvider } from "@elevenlabs/react"
 import BorderGlow from "~/components/BorderGlow"
 import DarkVeil from "~/components/dark-veil"
 import { AgentsSidebar } from "~/components/home/agents-sidebar"
+import { CornerBrackets, TelemetryTicker, Wordmark } from "~/components/home/hud"
 import { OutputSidebar } from "~/components/home/output-sidebar"
+import { Radar } from "~/components/home/radar"
 import { ReferenceComposer } from "~/components/home/reference-composer"
 import { Transcript } from "~/components/home/transcript"
 import { cn } from "~/lib/utils"
@@ -18,7 +20,7 @@ import { usePilotStore } from "~/pilot/state/store"
 import { glowVisual } from "~/pilot/state/visuals"
 import { initConfigFromEnv } from "~/pilot/storage/config"
 import { initContext } from "~/pilot/storage/context"
-import { pickGreeting } from "~/pilot/voice/greetings"
+import { pickGreeting, type Greeting } from "~/pilot/voice/greetings"
 import { useLaunch } from "~/pilot/launch/useLaunch"
 import { UpdatePrompt } from "~/pilot/update/UpdatePrompt"
 import { DevStatePanel } from "~/components/home/dev-state-panel"
@@ -32,7 +34,7 @@ function reveal(visible: boolean) {
 }
 
 export default function Home() {
-  const [greeting, setGreeting] = useState("")
+  const [greeting, setGreeting] = useState<Greeting>({ title: "", lead: "" })
   const phase = useLaunch()
 
   useEffect(() => {
@@ -96,7 +98,7 @@ export default function Home() {
   )
 }
 
-function HomeView({ greeting, phase }: { greeting: string; phase: number }) {
+function HomeView({ greeting, phase }: { greeting: Greeting; phase: number }) {
   const pilotState = usePilotStore((s) => s.pilotState)
   const chatting = usePilotStore((s) => s.conversation.length > 0)
   const glow = glowVisual(pilotState)
@@ -137,30 +139,69 @@ function HomeView({ greeting, phase }: { greeting: string; phase: number }) {
     <div className="absolute inset-0">
       <VoiceBanner />
 
-      {/* Orb — centred on first launch, shrinks to a presence at the top once
-          a conversation begins. Click it to start / stop a voice session. */}
-      <button
-        type="button"
-        aria-label={voice.active ? "Stop voice session" : "Start voice session"}
-        onClick={() => voice.toggle()}
+      {/* Cockpit framing — faint corner brackets around the central stage. */}
+      <CornerBrackets className={reveal(phase >= 3)} />
+
+      {/* Top HUD — thin telemetry strip with the wordmark centred above it. */}
+      <div className={cn("pointer-events-none absolute inset-x-0 top-0 z-30", reveal(phase >= 3))}>
+        <TelemetryTicker className="px-5 pt-3" />
+      </div>
+      <Wordmark
         className={cn(
-          "group absolute left-1/2 grid -translate-x-1/2 cursor-pointer place-items-center rounded-full drop-shadow-[0_0_52px_rgba(56,151,255,0.46)] transition-all duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)]",
+          "absolute left-1/2 top-[12px] z-30 -translate-x-1/2",
+          reveal(phase >= 3)
+        )}
+      />
+
+      {/* Orb stage — the radar sweep and idle heartbeat sit BEHIND the orb and
+          share its centre, shrinking together once a conversation begins. Click
+          the orb to start / stop a voice session. */}
+      <div
+        className={cn(
+          "absolute left-1/2 grid -translate-x-1/2 place-items-center transition-all duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)]",
           chatting ? "top-[64px] size-28" : "top-1/2 size-72 -translate-y-1/2",
           phase >= 2 ? "opacity-100" : "opacity-0"
         )}
       >
-        <PilotOrb />
-      </button>
+        {/* Radar — larger than the orb so its rings frame it. */}
+        <Radar className="absolute left-1/2 top-1/2 aspect-square w-[185%] -translate-x-1/2 -translate-y-1/2" />
+
+        {/* Idle heartbeat — the outer glow breathes when PILOT is resting. */}
+        <div
+          className={cn(
+            "absolute left-1/2 top-1/2 aspect-square w-[130%] -translate-x-1/2 -translate-y-1/2 rounded-full transition-opacity duration-700",
+            pilotState === "idle" ? "pilot-breathe" : "opacity-0"
+          )}
+          style={{
+            background:
+              "radial-gradient(circle, rgba(56,151,255,0.35) 0%, rgba(56,151,255,0.12) 42%, rgba(56,151,255,0) 68%)",
+          }}
+        />
+
+        <button
+          type="button"
+          aria-label={voice.active ? "Stop voice session" : "Start voice session"}
+          onClick={() => voice.toggle()}
+          className="group relative grid size-full cursor-pointer place-items-center rounded-full drop-shadow-[0_0_52px_rgba(56,151,255,0.46)]"
+        >
+          <PilotOrb />
+        </button>
+      </div>
 
       {/* Greeting — only on the empty home state, revealed last. */}
-      <h1
+      <div
         className={cn(
-          "absolute left-1/2 top-[clamp(120px,20vh,240px)] w-full max-w-[720px] -translate-x-1/2 px-6 text-center text-[clamp(28px,3.4vw,54px)] font-semibold leading-[0.98] tracking-tight text-white drop-shadow-[0_18px_42px_rgba(0,0,0,0.28)] transition-opacity duration-[900ms]",
+          "absolute left-1/2 top-[clamp(120px,20vh,240px)] w-full max-w-[760px] -translate-x-1/2 px-6 text-center transition-opacity duration-[900ms]",
           !chatting && phase >= 3 ? "opacity-100" : "opacity-0"
         )}
       >
-        {greeting}
-      </h1>
+        <h1 className="text-[clamp(28px,3.4vw,52px)] font-semibold leading-[1.0] tracking-tight text-white drop-shadow-[0_18px_42px_rgba(0,0,0,0.28)]">
+          {greeting.title}
+        </h1>
+        <p className="mt-3 text-[clamp(14px,1.5vw,19px)] font-normal text-white/55">
+          {greeting.lead}
+        </p>
+      </div>
 
       {/* Transcript — a height-bounded scroll area between the orb and the
           composer; content scrolls within it and stops above the dock. */}
@@ -209,6 +250,7 @@ function VoiceBanner() {
   const voiceError = usePilotStore((s) => s.voiceError)
   const notice = usePilotStore((s) => s.notice)
   const setVoiceError = usePilotStore((s) => s.setVoiceError)
+  const chatting = usePilotStore((s) => s.conversation.length > 0)
 
   let text: string | null = null
   let tone: "error" | "info" = "info"
@@ -227,7 +269,14 @@ function VoiceBanner() {
 
   if (!text) return null
   return (
-    <div className="absolute left-1/2 top-6 z-40 -translate-x-1/2">
+    <div
+      className={cn(
+        "absolute left-1/2 z-40 -translate-x-1/2 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
+        // Top on the empty home state (clear of the centred orb), bottom while
+        // chatting (clear of the docked orb + wordmark), so it never collides.
+        chatting ? "bottom-[104px]" : "top-[68px]"
+      )}
+    >
       <div
         className={cn(
           "flex items-center gap-2 rounded-full border px-4 py-2 text-[12.5px] font-medium backdrop-blur-xl",

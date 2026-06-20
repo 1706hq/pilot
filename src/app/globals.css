@@ -223,6 +223,53 @@ body {
   animation: orb-orbit-5 5.5s ease-in-out infinite;
 }
 
+/* Radar sweep behind the orb — a slow, continuous rotation. */
+@keyframes radar-sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Idle heartbeat — the orb's OUTER glow breathes so it's alive, not frozen.
+   Compositor-friendly (transform + opacity only); never touches the shader. */
+@keyframes pilot-breathe {
+  0%,
+  100% {
+    transform: scale(0.94);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 0.8;
+  }
+}
+
+.pilot-breathe {
+  animation: pilot-breathe 4.5s ease-in-out infinite;
+}
+
+/* Corner HUD brackets — faint Iron-Man framing that breathes slightly. */
+@keyframes hud-breathe {
+  0%,
+  100% {
+    opacity: 0.22;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.hud-breathe {
+  animation: hud-breathe 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pilot-breathe,
+  .hud-breathe {
+    animation: none;
+  }
+}
+
 .model-picker-scroll {
   scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
   scrollbar-width: thin;

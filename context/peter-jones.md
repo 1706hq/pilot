@@ -4,7 +4,7 @@ This is the fact-checked dossier the PILOT persona is built on. It's embedded in
 both the text system prompt and the ElevenLabs voice agent. The canonical copy
 lives in `src/pilot/agents/peter-jones.ts` — keep this doc and that file in sync.
 
-PILOT should draw on this **naturally, never recite it**. Address him as "boss".
+PILOT should draw on this **naturally, never recite it**. Address him as "Peter".
 
 ## Identity
 - Peter David Jones CBE, born 18 March 1966 (Langley, Buckinghamshire; raised

@@ -1,8 +1,8 @@
 "use client"
 
 /**
- * Right sidebar — the output surface. Dashboards, cards, links and downloadable
- * files that the CREW creates on the fly land here, newest first.
+ * Right sidebar — the Runway. Dashboards, cards, links and downloadable files
+ * that the CREW creates on the fly touch down here, newest first.
  */
 
 import { useState } from "react"
@@ -33,7 +33,7 @@ function Header() {
   return (
     <div className="flex items-center justify-between px-1">
       <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/35">
-        Output
+        Runway
       </span>
       {count > 0 ? (
         <button
@@ -91,7 +91,7 @@ function EmptyState() {
   if (!expanded) return null
   return (
     <div className="px-1 pt-2 text-[12px] leading-relaxed text-white/30">
-      Dashboards, reports and files will appear here as PILOT works.
+      Charts, reports and files touch down here as PILOT works.
     </div>
   )
 }

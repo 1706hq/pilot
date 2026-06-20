@@ -19,7 +19,7 @@ rise-fall-rise story, Dragons' Den, his portfolio, his quirks (the bright socks)
 his dyslexia (so: speak, don't wall-of-text). Full dossier in
 [peter-jones.md](peter-jones.md) and `src/pilot/agents/peter-jones.ts`.
 
-He's addressed as **"boss"** (occasionally "Peter").
+He's addressed as **"Peter"**.
 
 ## The CREW (agents)
 
