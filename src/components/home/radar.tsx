@@ -26,7 +26,9 @@ export function Radar({ className }: { className?: string }) {
 
   const ring = hsla(glowColor, 0.18)
   const ringFaint = hsla(glowColor, 0.1)
-  const sweep = hsla(glowColor, 0.34)
+  // Blue rings, gold sweep when resting — the "watching" look Peter preferred.
+  // While active, the sweep tracks PILOT's state colour so it reads as alive.
+  const sweep = pilotState === "idle" ? hsla("42 95 62", 0.42) : hsla(glowColor, 0.34)
 
   return (
     <div

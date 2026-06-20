@@ -37,21 +37,39 @@ export interface Task {
   startedAt: number
 }
 
+/**
+ * How a file's contents landed in context — drives the honest "Readable" vs
+ * "name only" status PILOT shows so Peter can trust what's actually been read.
+ */
+export type ContextFileStatus =
+  /** Plain-text file read directly. */
+  | "text"
+  /** Binary (PDF / Word / Excel) whose text we extracted. */
+  | "extracted"
+  /** Binary we kept by name only — contents not readable. */
+  | "binary"
+
 /** Metadata for a user-uploaded context file stored locally. */
 export interface ContextFileMeta {
   name: string
-  /** appData-relative path on disk. */
+  /** localStorage key the file is stored under. */
   path: string
   size: number
   addedAt: number
   /** First chunk of extracted text, for previews / light context. */
   snippet?: string
+  /** Whether PILOT can actually read the contents, and how they were obtained. */
+  status: ContextFileStatus
+  /** True when readable text is available for the model. */
+  hasText: boolean
 }
 
-/** Runtime configuration, persisted locally on device. */
+/** Runtime configuration, persisted locally on device (localStorage). */
 export interface PilotConfig {
   openRouterKey?: string
   elevenLabsKey?: string
   elevenLabsAgentId?: string
   porcupineKey?: string
+  /** OpenRouter model id; falls back to the app default when unset. */
+  model?: string
 }

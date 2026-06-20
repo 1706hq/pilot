@@ -11,9 +11,14 @@ import { motion } from "motion/react"
 import { Sidebar, SidebarBody, useSidebar } from "~/components/ui/sidebar"
 import { cn } from "~/lib/utils"
 import { AGENTS, CREW, type AgentMeta } from "~/pilot/agents/agents"
-import { addContextFiles } from "~/pilot/storage/context"
+import {
+  addContextFiles,
+  clearContext,
+  describeUpload,
+  removeContextFile,
+} from "~/pilot/storage/context"
 import { usePilotStore } from "~/pilot/state/store"
-import type { Task } from "~/pilot/types"
+import type { ContextFileStatus, Task } from "~/pilot/types"
 
 function ExpandLabel({
   children,
@@ -137,6 +142,112 @@ function TaskRow({ task }: { task: Task }) {
   )
 }
 
+/** Human-readable file size. */
+function fmtSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+/** Honest read-status chip — can PILOT actually read this file's contents? */
+function StatusPill({ status }: { status: ContextFileStatus }) {
+  const readable = status === "text" || status === "extracted"
+  return (
+    <span
+      className={cn(
+        "rounded-full px-1.5 py-px text-[9.5px] font-medium uppercase tracking-[0.08em]",
+        readable
+          ? "bg-sky-400/12 text-sky-300/90"
+          : "bg-amber-400/12 text-amber-300/90"
+      )}
+      title={
+        readable
+          ? "PILOT can read this file's contents"
+          : "Stored by name only — PILOT can't read the contents (e.g. a scanned PDF)"
+      }
+    >
+      {readable ? "Readable" : "Name only"}
+    </span>
+  )
+}
+
+/**
+ * Persistent, auditable list of what Peter has uploaded — so he can confirm and
+ * review his context any time (and see whether each file is actually readable).
+ * Only shown expanded; collapses with the sidebar.
+ */
+function ContextFiles() {
+  const { open, animate } = useSidebar()
+  const expanded = animate ? open : true
+  const files = usePilotStore((s) => s.contextFiles)
+  if (!expanded || files.length === 0) return null
+
+  return (
+    <div className="flex min-h-0 shrink-0 flex-col">
+      <div className="mb-2 flex items-center justify-between px-2">
+        <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/35">
+          Context · {files.length}
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            if (
+              window.confirm("Remove all uploaded files from PILOT's context?")
+            )
+              clearContext()
+          }}
+          className="text-[11px] text-white/40 transition hover:text-white/70"
+        >
+          Clear all
+        </button>
+      </div>
+      <div className="model-picker-scroll flex max-h-44 flex-col gap-1 overflow-y-auto overflow-x-hidden pr-0.5">
+        {files
+          .slice()
+          .reverse()
+          .map((f) => (
+            <div
+              key={f.name}
+              className="group flex items-center gap-2 rounded-lg px-2 py-1.5 transition hover:bg-white/5"
+            >
+              <svg
+                className="size-4 shrink-0 text-white/35"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M14 3v4a1 1 0 0 0 1 1h4M5 3h9l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"
+                />
+              </svg>
+              <div className="min-w-0 flex-1 overflow-hidden">
+                <div className="truncate text-[12px] text-white/80">{f.name}</div>
+                <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-white/40">
+                  <StatusPill status={f.status} />
+                  <span className="tabular-nums">{fmtSize(f.size)}</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                aria-label={`Remove ${f.name}`}
+                title={`Remove ${f.name}`}
+                onClick={() => removeContextFile(f.name)}
+                className="grid size-6 shrink-0 place-items-center rounded-md text-white/30 opacity-0 transition hover:bg-white/10 hover:text-white/80 group-hover:opacity-100"
+              >
+                <svg className="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" d="M6 6l12 12M18 6 6 18" />
+                </svg>
+              </button>
+            </div>
+          ))}
+      </div>
+    </div>
+  )
+}
+
 /** Bottom-left "Add context" tile — uploads files into PILOT's local context. */
 function AddContextButton() {
   const { open, animate } = useSidebar()
@@ -153,13 +264,10 @@ function AddContextButton() {
         className="hidden"
         onChange={(e) => {
           if (e.target.files?.length) {
-            void addContextFiles(e.target.files).then(({ added, skippedImages }) => {
-              const parts: string[] = []
-              if (added > 0) parts.push(`Added ${added} file${added > 1 ? "s" : ""} to PILOT's context`)
-              if (skippedImages > 0) parts.push(`skipped ${skippedImages} image${skippedImages > 1 ? "s" : ""}`)
+            void addContextFiles(e.target.files).then((result) => {
               const store = usePilotStore.getState()
-              store.setNotice(parts.join(" · ") || "Nothing added")
-              setTimeout(() => usePilotStore.getState().setNotice(null), 3500)
+              store.setNotice(describeUpload(result))
+              setTimeout(() => usePilotStore.getState().setNotice(null), 5000)
             })
           }
           e.target.value = ""
@@ -169,6 +277,8 @@ function AddContextButton() {
         type="button"
         data-click-effect
         onClick={() => inputRef.current?.click()}
+        title="Add files to PILOT's context"
+        aria-label="Add files to PILOT's context"
         className={cn(
           "group flex w-full items-center rounded-lg text-left transition-colors",
           expanded ? "gap-3 px-2 py-1 hover:bg-white/5" : "justify-center"
@@ -189,17 +299,60 @@ function AddContextButton() {
         {expanded ? (
           <div className="min-w-0 flex-1 overflow-hidden">
             <div className="truncate text-sm font-medium text-white/85">
-              Add context
+              Add files
             </div>
             <div className="truncate text-[11px] text-white/40">
               {count > 0
-                ? `${count} file${count > 1 ? "s" : ""} in context`
-                : "Upload files for PILOT"}
+                ? `${count} file${count > 1 ? "s" : ""} in context — click to add more`
+                : "PDF, Excel, Word or text — PILOT reads them"}
             </div>
           </div>
         ) : null}
       </button>
     </div>
+  )
+}
+
+/** Settings (bring-your-own-key) — opens the keys panel. Sits under Add files. */
+function SettingsButton() {
+  const { open, animate } = useSidebar()
+  const expanded = animate ? open : true
+  const setSettingsOpen = usePilotStore((s) => s.setSettingsOpen)
+  const configured = usePilotStore((s) => Boolean(s.config.openRouterKey))
+
+  return (
+    <button
+      type="button"
+      data-click-effect
+      onClick={() => setSettingsOpen(true)}
+      title="Settings — your API keys"
+      aria-label="Open settings"
+      className={cn(
+        "group flex w-full items-center rounded-lg text-left transition-colors",
+        expanded ? "gap-3 px-2 py-1 hover:bg-white/5" : "justify-center"
+      )}
+    >
+      <span className="relative grid size-12 shrink-0 place-items-center rounded-lg bg-white/8 text-white/70 transition group-hover:bg-white/[0.14] group-hover:text-white">
+        <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+        </svg>
+        {!configured ? (
+          <span
+            className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]"
+            title="Add your API keys to get started"
+          />
+        ) : null}
+      </span>
+      {expanded ? (
+        <div className="min-w-0 flex-1 overflow-hidden">
+          <div className="truncate text-sm font-medium text-white/85">Settings</div>
+          <div className="truncate text-[11px] text-white/40">
+            {configured ? "API keys · this device" : "Add your API keys"}
+          </div>
+        </div>
+      ) : null}
+    </button>
   )
 }
 
@@ -241,7 +394,11 @@ export function AgentsSidebar() {
           )}
         </div>
 
-        <AddContextButton />
+        <ContextFiles />
+        <div className="flex flex-col gap-1">
+          <AddContextButton />
+          <SettingsButton />
+        </div>
       </SidebarBody>
     </Sidebar>
   )

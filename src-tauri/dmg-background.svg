@@ -1,0 +1,28 @@
+<svg width="700" height="440" viewBox="0 0 700 440" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="700" y2="440" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0c1830"/>
+      <stop offset="0.55" stop-color="#070b16"/>
+      <stop offset="1" stop-color="#241204"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="350" cy="150" r="280" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2c66b8" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#2c66b8" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="700" height="440" fill="url(#bg)"/>
+  <rect width="700" height="440" fill="url(#glow)"/>
+
+  <!-- Soft light chips behind Finder's icon labels (which it draws in dark text)
+       so they stay legible on the dark background, in light or dark mode. -->
+  <rect x="132" y="234" width="76" height="27" rx="9" fill="#e8eef7" opacity="0.92"/>
+  <rect x="462" y="234" width="136" height="27" rx="9" fill="#e8eef7" opacity="0.92"/>
+
+  <!-- Icons (PILOT app + Applications) are placed by the DMG at y=150; macOS adds
+       their labels. Below them, the after-install command. -->
+  <text x="350" y="278" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="15" fill="#9aa7bd">After installing, paste this in Terminal:</text>
+
+  <rect x="40" y="300" width="620" height="58" rx="12" fill="#0d1526"/>
+  <rect x="40" y="300" width="620" height="58" rx="12" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="1.5"/>
+  <text x="350" y="335" text-anchor="middle" font-family="Menlo, Monaco, Consolas, monospace" font-size="15" fill="#cfe0ff">xattr -dr com.apple.quarantine /Applications/PILOT.app</text>
+</svg>

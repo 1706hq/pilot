@@ -17,6 +17,13 @@ export interface WidgetMeta {
   id: WidgetId
   agent: AgentId
   createdAt: number
+  /**
+   * Provenance — the uploaded file(s) this widget's figures were drawn from,
+   * e.g. "American Golf Q1.xlsx". Stamped when the generator grounds the widget
+   * in Peter's context, so he can trust (or catch) the numbers. Absent when the
+   * widget isn't sourced from an upload.
+   */
+  source?: string
 }
 
 /** A single headline metric. */

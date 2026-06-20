@@ -28,19 +28,19 @@ export function Wordmark({ className }: { className?: string }) {
   const letters = ["P", "I", "L", "O", "T"]
   return (
     <div className={cn("pointer-events-none select-none text-center", className)}>
-      <div className="flex items-baseline justify-center font-semibold uppercase leading-none text-white/85 [text-shadow:0_0_20px_rgba(120,170,255,0.35)]">
+      <div className="flex items-baseline justify-center font-semibold uppercase leading-none text-[#5aa2ff] [text-shadow:0_0_26px_rgba(56,151,255,0.6)]">
         {letters.map((ch, i) => (
           <span key={ch} className="flex items-baseline">
-            <span className="text-[22px] tracking-[0.05em]">{ch}</span>
+            <span className="text-[32px] tracking-[0.06em]">{ch}</span>
             {i < letters.length - 1 ? (
-              <span aria-hidden className="mx-[2.5px] text-[22px] leading-none text-white/40">
+              <span aria-hidden className="mx-[3px] text-[32px] leading-none text-[#5aa2ff]/45">
                 .
               </span>
             ) : null}
           </span>
         ))}
       </div>
-      <div className="mt-[7px] text-[9px] font-semibold uppercase tracking-[0.3em] text-amber-300/90 [text-shadow:0_0_12px_rgba(252,211,77,0.45)]">
+      <div className="mt-[8px] text-[9.5px] font-semibold uppercase tracking-[0.3em] text-amber-300/90 [text-shadow:0_0_12px_rgba(252,211,77,0.45)]">
         Peter&apos;s Intelligent Life Operating Terminal
       </div>
     </div>
@@ -65,7 +65,7 @@ function Ticker({
   const arrow = dir === "up" ? "▲" : dir === "down" ? "▼" : ""
   return (
     <span className="flex items-center gap-1.5">
-      <span className="text-white/30">{label}</span>
+      <span className="text-white/45">{label}</span>
       <span className={cn("tabular-nums", color)}>
         {value}
         {arrow ? ` ${arrow}` : ""}
@@ -95,24 +95,24 @@ export function TelemetryTicker({ className }: { className?: string }) {
   return (
     <div
       className={cn(
-        "pointer-events-none flex select-none items-center justify-between font-mono text-[10px] uppercase tracking-[0.16em] text-white/35",
+        "pointer-events-none flex select-none items-center justify-between font-mono text-[11px] uppercase tracking-[0.16em] text-white/55",
         className
       )}
     >
       {/* Left — systems status + clock. Hidden before it would crowd the
           centred wordmark on narrower windows. */}
-      <div className="hidden items-center gap-2.5 min-[1120px]:flex">
+      <div className="hidden items-center gap-2.5 min-[1000px]:flex">
         <span className="flex items-center gap-1.5">
           <span className="hud-breathe size-1.5 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.9)]" />
-          <span className="text-emerald-300/65">All systems green</span>
+          <span className="text-emerald-300/80">All systems green</span>
         </span>
-        <span className="text-white/15">·</span>
-        <span className="text-white/40">{date}</span>
-        <span className="tabular-nums text-white/55">{time}</span>
+        <span className="text-white/20">·</span>
+        <span className="text-white/55">{date}</span>
+        <span className="tabular-nums text-white/70">{time}</span>
       </div>
       {/* Right — ambient market / portfolio readouts. Hidden a touch earlier
           than the left cluster (it sits slightly closer to the wordmark). */}
-      <div className="ml-auto hidden items-center gap-3.5 min-[1200px]:flex">
+      <div className="ml-auto hidden items-center gap-3.5 min-[1140px]:flex">
         <Ticker label="FTSE" value="8,214" dir="up" />
         <Ticker label="GBP/USD" value="1.271" dir="up" />
         <Ticker label="Portfolio" value="●" dir="flat" />

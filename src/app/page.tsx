@@ -11,6 +11,8 @@ import { MarketConditions } from "~/components/home/market-conditions"
 import { OutputSidebar } from "~/components/home/output-sidebar"
 import { Radar } from "~/components/home/radar"
 import { ReferenceComposer } from "~/components/home/reference-composer"
+import { SettingsModal } from "~/components/home/settings-modal"
+import { TodaysBrief } from "~/components/home/todays-brief"
 import { Transcript } from "~/components/home/transcript"
 import { cn } from "~/lib/utils"
 import { sendMessage } from "~/pilot/agents/orchestrator"
@@ -19,7 +21,7 @@ import { useWakeWord } from "~/pilot/voice/useWakeWord"
 import PilotOrb from "~/pilot/state/PilotOrb"
 import { usePilotStore } from "~/pilot/state/store"
 import { glowVisual } from "~/pilot/state/visuals"
-import { initConfigFromEnv } from "~/pilot/storage/config"
+import { initConfig } from "~/pilot/storage/config"
 import { initContext } from "~/pilot/storage/context"
 import { pickGreeting, type Greeting } from "~/pilot/voice/greetings"
 import { useLaunch } from "~/pilot/launch/useLaunch"
@@ -40,8 +42,12 @@ export default function Home() {
 
   useEffect(() => {
     setGreeting(pickGreeting())
-    initConfigFromEnv()
+    initConfig()
     initContext()
+    // First-run: no key yet → open Settings so Peter can paste his keys.
+    if (!usePilotStore.getState().config.openRouterKey) {
+      usePilotStore.getState().setSettingsOpen(true)
+    }
   }, [])
 
   return (
@@ -93,6 +99,7 @@ export default function Home() {
         </div>
       </div>
 
+      <SettingsModal />
       <DevStatePanel />
       <UpdatePrompt />
     </main>
@@ -102,6 +109,9 @@ export default function Home() {
 function HomeView({ greeting, phase }: { greeting: Greeting; phase: number }) {
   const pilotState = usePilotStore((s) => s.pilotState)
   const chatting = usePilotStore((s) => s.conversation.length > 0)
+  const voiceConfigured = usePilotStore(
+    (s) => Boolean(s.config.elevenLabsKey && s.config.elevenLabsAgentId)
+  )
   const glow = glowVisual(pilotState)
   const voice = usePilotVoice()
   // Always-on "Hey PILOT" listener (no visible UI). Logs to console for debug.
@@ -118,14 +128,16 @@ function HomeView({ greeting, phase }: { greeting: Greeting; phase: number }) {
   voiceRef.current = voice
   const autoStarted = useRef(false)
   useEffect(() => {
-    if (phase >= 3 && !autoStarted.current) {
+    // Auto-connect once the UI has revealed AND keys exist — so an unconfigured
+    // first run doesn't throw a voice error; it connects the moment Peter saves.
+    if (phase >= 3 && voiceConfigured && !autoStarted.current) {
       autoStarted.current = true
       const t = setTimeout(() => {
         if (!voiceRef.current.active) void voiceRef.current.start()
       }, 600)
       return () => clearTimeout(t)
     }
-  }, [phase])
+  }, [phase, voiceConfigured])
 
   // Hold the composer's border-glow sweep until the prompt bar has faded in.
   const [glowReady, setGlowReady] = useState(false)
@@ -172,12 +184,18 @@ function HomeView({ greeting, phase }: { greeting: Greeting; phase: number }) {
       <div
         className={cn(
           "absolute left-1/2 grid -translate-x-1/2 place-items-center transition-all duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)]",
-          chatting ? "top-[64px] size-28" : "top-1/2 size-72 -translate-y-1/2",
+          chatting ? "top-[64px] size-28" : "top-[33%] size-56 -translate-y-1/2",
           phase >= 2 ? "opacity-100" : "opacity-0"
         )}
       >
-        {/* Radar — larger than the orb so its rings frame it. */}
-        <Radar className="absolute left-1/2 top-1/2 aspect-square w-[185%] -translate-x-1/2 -translate-y-1/2" />
+        {/* Radar — larger than the orb so its rings frame it; it becomes the
+            hero "watching" element on the resting screen. */}
+        <Radar
+          className={cn(
+            "absolute left-1/2 top-1/2 aspect-square -translate-x-1/2 -translate-y-1/2",
+            chatting ? "w-[185%]" : "w-[215%]"
+          )}
+        />
 
         {/* Idle heartbeat — the outer glow breathes when PILOT is resting. */}
         <div
@@ -201,19 +219,33 @@ function HomeView({ greeting, phase }: { greeting: Greeting; phase: number }) {
         </button>
       </div>
 
-      {/* Greeting — only on the empty home state, revealed last. */}
+      {/* Greeting — only on the empty home state, revealed last. Sits up top,
+          above the orb, so the brief has room beneath. */}
       <div
         className={cn(
-          "absolute left-1/2 top-[clamp(120px,20vh,240px)] w-full max-w-[760px] -translate-x-1/2 px-6 text-center transition-opacity duration-[900ms]",
+          "absolute left-1/2 top-[clamp(78px,9vh,140px)] w-full max-w-[760px] -translate-x-1/2 px-6 text-center transition-opacity duration-[900ms]",
           !chatting && phase >= 3 ? "opacity-100" : "opacity-0"
         )}
       >
-        <h1 className="text-[clamp(28px,3.4vw,52px)] font-semibold leading-[1.0] tracking-tight text-white drop-shadow-[0_18px_42px_rgba(0,0,0,0.28)]">
+        <h1 className="text-[clamp(26px,3vw,46px)] font-semibold leading-[1.0] tracking-tight text-white drop-shadow-[0_18px_42px_rgba(0,0,0,0.28)]">
           {greeting.title}
         </h1>
-        <p className="mt-3 text-[clamp(14px,1.5vw,19px)] font-normal text-white/55">
+        <p className="mt-3 text-[clamp(13px,1.4vw,18px)] font-normal text-white/55">
           {greeting.lead}
         </p>
+      </div>
+
+      {/* Today's Brief — the morning decision summary Peter asked to have back.
+          Lives below the orb on the resting screen; hidden once chatting. */}
+      <div
+        className={cn(
+          "absolute left-1/2 bottom-[128px] top-[49%] w-[min(calc(100%-48px),620px)] -translate-x-1/2 transition-opacity duration-[900ms]",
+          !chatting && phase >= 3
+            ? "opacity-100"
+            : "pointer-events-none opacity-0"
+        )}
+      >
+        <TodaysBrief className="h-full" />
       </div>
 
       {/* Transcript — a height-bounded scroll area between the orb and the
@@ -228,8 +260,7 @@ function HomeView({ greeting, phase }: { greeting: Greeting; phase: number }) {
       <div className={reveal(phase >= 3)}>
         <div
           className={cn(
-            "chat-dock absolute left-1/2 w-[min(calc(100%-48px),760px)] -translate-x-1/2",
-            chatting ? "bottom-[24px]" : "top-[82vh]"
+            "chat-dock absolute left-1/2 w-[min(calc(100%-48px),760px)] -translate-x-1/2 bottom-[24px]"
           )}
         >
           <div className="relative">
@@ -285,9 +316,10 @@ function VoiceBanner() {
     <div
       className={cn(
         "absolute left-1/2 z-40 -translate-x-1/2 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
-        // Top on the empty home state (clear of the centred orb), bottom while
-        // chatting (clear of the docked orb + wordmark), so it never collides.
-        chatting ? "bottom-[104px]" : "top-[68px]"
+        // Sits just above the composer in both states (the idle screen now
+        // stacks wordmark → greeting → orb → brief → composer, so the old top
+        // slot would collide with the greeting).
+        chatting ? "bottom-[104px]" : "bottom-[92px]"
       )}
     >
       <div

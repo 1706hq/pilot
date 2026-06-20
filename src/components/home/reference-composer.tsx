@@ -3,7 +3,7 @@
 import { useRef, useState } from "react"
 
 import { PlaceholdersAndVanishInput } from "~/components/ui/placeholders-and-vanish-input"
-import { addContextFiles } from "~/pilot/storage/context"
+import { addContextFiles, describeUpload } from "~/pilot/storage/context"
 import { usePilotStore } from "~/pilot/state/store"
 
 function Icon({
@@ -66,15 +66,10 @@ export function ReferenceComposer({
 
   const onAttach = (files: FileList | null) => {
     if (!files?.length) return
-    void addContextFiles(files).then(({ added, skippedImages }) => {
-      const parts: string[] = []
-      if (added > 0)
-        parts.push(`Added ${added} file${added > 1 ? "s" : ""} to PILOT's context`)
-      if (skippedImages > 0)
-        parts.push(`skipped ${skippedImages} image${skippedImages > 1 ? "s" : ""}`)
+    void addContextFiles(files).then((result) => {
       const store = usePilotStore.getState()
-      store.setNotice(parts.join(" · ") || "Nothing added")
-      setTimeout(() => usePilotStore.getState().setNotice(null), 3500)
+      store.setNotice(describeUpload(result))
+      setTimeout(() => usePilotStore.getState().setNotice(null), 5000)
     })
   }
 
@@ -109,7 +104,7 @@ export function ReferenceComposer({
               "Ask PILOT anything…",
               "Sterling — how's cash across the portfolio?",
               "Marshall — pull up American Golf's Week 20 KPIs",
-              "Draft an invoice for Acme Ltd",
+              "Draft a one-page brief on the Jessops turnaround",
             ]}
           />
         </div>
@@ -143,7 +138,8 @@ export function ReferenceComposer({
             }}
           />
           <button
-            aria-label="Attach files"
+            aria-label="Add files to PILOT's context"
+            title="Add files to PILOT's context"
             onClick={() => fileRef.current?.click()}
             className="grid h-9 w-9 place-items-center rounded-full border border-white/8 bg-white/10 text-white/82 transition hover:bg-white/16 active:scale-95"
             data-click-effect

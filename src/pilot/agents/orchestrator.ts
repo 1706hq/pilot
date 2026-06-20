@@ -10,7 +10,7 @@
 import { paintCanvas } from "~/pilot/agents/canvas"
 import { buildSystemPrompt } from "~/pilot/agents/personas"
 import { getContextText } from "~/pilot/storage/context"
-import { OPENROUTER_MODEL } from "~/pilot/storage/config"
+import { getModel } from "~/pilot/storage/config"
 import { usePilotStore } from "~/pilot/state/store"
 import type { AgentId, ChatMessage } from "~/pilot/types"
 
@@ -31,7 +31,7 @@ const TOOLS = [
           intent: {
             type: "string",
             description:
-              "What to create, with any details, e.g. 'invoice Acme Ltd £5,000 for the Q3 rebrand, net 30 days' or 'American Golf Week 20 KPI dashboard' or 'one-page brief on the Jessops turnaround'.",
+              "What to create, with any details — only what Peter asked for. E.g. 'invoice the client he named for the amount he gave, net 30 days', 'dashboard of American Golf's KPIs from the uploaded data', or 'one-page brief on the Jessops turnaround'. Do not invent clients, amounts or figures Peter didn't provide.",
           },
         },
       },
@@ -118,7 +118,7 @@ export async function sendMessage(text: string, agentOverride?: AgentId) {
           "X-Title": "PILOT",
         },
         body: JSON.stringify({
-          model: OPENROUTER_MODEL,
+          model: getModel(),
           messages,
           tools: TOOLS,
           tool_choice: "auto",

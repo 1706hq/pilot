@@ -81,6 +81,18 @@ function Title({ children }: { children: React.ReactNode }) {
   )
 }
 
+/** Provenance footer — shows which uploaded file these figures came from. */
+function SourceTag({ name }: { name: string }) {
+  return (
+    <div className="mt-3 flex items-center gap-1.5 border-t border-white/8 pt-2 text-[10.5px] text-white/40">
+      <svg className="size-3 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path strokeLinecap="round" strokeLinejoin="round" d="M14 3v4a1 1 0 0 0 1 1h4M5 3h9l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z" />
+      </svg>
+      <span className="truncate">From your upload · {name}</span>
+    </div>
+  )
+}
+
 export function WidgetCard({
   widget,
   onDownload,
@@ -144,6 +156,7 @@ export function WidgetCard({
             <InnerWidget spec={widget} onDownload={onDownload} />
           </>
         )}
+        {widget.source ? <SourceTag name={widget.source} /> : null}
       </Frame>
     </motion.div>
   )

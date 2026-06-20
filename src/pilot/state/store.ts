@@ -38,9 +38,12 @@ interface PilotStore {
   voiceError: string | null
   /** Transient info notice (e.g. "Added 2 files to context"). */
   notice: string | null
+  /** Whether the Settings (bring-your-own-key) panel is open. */
+  settingsOpen: boolean
 
   setVoiceError: (msg: string | null) => void
   setNotice: (msg: string | null) => void
+  setSettingsOpen: (open: boolean) => void
   setPilotState: (s: PilotState) => void
   setActiveAgent: (a: AgentId) => void
 
@@ -56,7 +59,7 @@ interface PilotStore {
   clearTasks: () => void
 
   /** Stamp meta onto a widget body and push it (newest first). */
-  addWidget: (body: WidgetBody, agent: AgentId) => string
+  addWidget: (body: WidgetBody, agent: AgentId, source?: string) => string
   removeWidget: (id: string) => void
   clearWidgets: () => void
 
@@ -74,9 +77,11 @@ export const usePilotStore = create<PilotStore>((set) => ({
   config: {},
   voiceError: null,
   notice: null,
+  settingsOpen: false,
 
   setVoiceError: (voiceError) => set({ voiceError }),
   setNotice: (notice) => set({ notice }),
+  setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
   setPilotState: (pilotState) => set({ pilotState }),
   setActiveAgent: (activeAgent) => set({ activeAgent }),
 
@@ -112,9 +117,15 @@ export const usePilotStore = create<PilotStore>((set) => ({
     })),
   clearTasks: () => set({ tasks: [] }),
 
-  addWidget: (body, agent) => {
+  addWidget: (body, agent, source) => {
     const id = uid("w")
-    const widget = { ...body, id, agent, createdAt: Date.now() } as WidgetSpec
+    const widget = {
+      ...body,
+      id,
+      agent,
+      createdAt: Date.now(),
+      ...(source ? { source } : {}),
+    } as WidgetSpec
     set((s) => ({ widgets: [widget, ...s.widgets] }))
     return id
   },

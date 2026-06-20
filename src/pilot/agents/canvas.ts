@@ -7,7 +7,8 @@
  * tool and the text path's render_ui tool.
  */
 
-import { OPENROUTER_MODEL } from "~/pilot/storage/config"
+import { getModel } from "~/pilot/storage/config"
+import { getContextText } from "~/pilot/storage/context"
 import { usePilotStore } from "~/pilot/state/store"
 import type { AgentId } from "~/pilot/types"
 import type { WidgetBody } from "~/pilot/widgets/types"
@@ -22,12 +23,26 @@ function today(): string {
   })
 }
 
-function schemaPrompt(): string {
+function schemaPrompt(contextText: string): string {
+  const grounding = contextText
+    ? `\n\n## Peter's uploaded data — your ONLY source for real figures
+${contextText}
+
+GROUNDING RULES (critical — Peter checks these against reality):
+- For any company's numbers, KPIs, financials or metrics, use ONLY figures that appear in the uploaded data above. Do NOT round, adjust, or "improve" them.
+- If the intent asks for a company's numbers and that company is NOT in the uploaded data, do NOT invent figures. Return a "document" that says you don't have that data uploaded yet and names exactly what Peter should upload.
+- When you build a widget from the uploaded data, set a top-level "source" field to the exact file name(s) you drew from, e.g. "source":"American Golf Q1.xlsx".`
+    : `\n\n## No data uploaded
+Peter has not uploaded any files. You have NO real figures for his companies.
+GROUNDING RULES (critical):
+- Do NOT invent financial figures, KPIs or metrics for any company. If the intent asks to show a company's numbers/performance/KPIs, return a "document" explaining that no data has been uploaded for it and naming exactly what Peter should upload (e.g. "Upload American Golf's latest management accounts or KPI export and I'll build this from the real numbers").
+- You MAY still use numbers the user states explicitly in the intent (e.g. an invoice amount they give you).`
+
   return `You generate UI for PILOT, the command centre for Peter Jones CBE (portfolio incl. American Golf, Jessops, Levi Roots, Gener8). Given an intent, return ONLY ONE JSON object — no prose, no markdown fences. Pick the BEST type for the intent:
 
 1) "invoice" — when asked to create/make/draft/raise an invoice or bill:
 {"type":"invoice","number":"INV-<4 digits>","issueDate":"${today()}","dueDate":"<e.g. 30 days out, optional>","currency":"£","from":{"name":"PJ Investment Group","lines":["Marlow, UK","accounts@pjinvestment.co.uk"]},"to":{"name":"<client name>","lines":["<optional address / email>"]},"items":[{"description":"<service>","quantity":<NUMBER>,"unitPrice":<NUMBER>}],"taxRate":<20 if VAT applies else omit>,"notes":"<optional, e.g. payment terms>"}
-quantity and unitPrice MUST be numbers. Infer sensible line items, amounts and a client from the intent.
+quantity and unitPrice MUST be numbers. Use the amounts and client the user gives in the intent.
 
 2) "document" — for a report, brief, summary, memo, plan, agenda, notes, or any prose deliverable:
 {"type":"document","title":"<title>","subtitle":"<optional>","body":"<markdown using ## headings, **bold**, and * bullets>"}
@@ -40,7 +55,9 @@ quantity and unitPrice MUST be numbers. Infer sensible line items, amounts and a
 
 4) A single "chart", "table" or "stat" object when that alone answers the intent.
 
-Use realistic, plausible figures in GBP. Pre-format stat values as strings ("£1.2M","43.5%"). Make it specific to the intent. Output ONLY the JSON object.`
+Pre-format stat values as strings ("£1.2M","43.5%"). Make it specific to the intent.${grounding}
+
+Output ONLY the JSON object.`
 }
 
 interface OpenAIResp {
@@ -115,11 +132,18 @@ function agentFor(body: WidgetBody): AgentId {
   return "PILOT"
 }
 
-/** Call Gemini to produce the right widget spec for the given intent. */
-export async function generateCanvas(intent: string): Promise<WidgetBody | null> {
+/**
+ * Call Gemini to produce the right widget spec for the given intent, GROUNDED in
+ * whatever Peter has uploaded. Returns the spec plus the source file (if the
+ * model drew its figures from a real upload) so the canvas can show provenance.
+ */
+export async function generateCanvas(
+  intent: string
+): Promise<{ body: WidgetBody; source?: string } | null> {
   const { config } = usePilotStore.getState()
   if (!config.openRouterKey) return null
   try {
+    const contextText = getContextText(8000)
     const res = await fetch(OPENROUTER_URL, {
       method: "POST",
       headers: {
@@ -129,20 +153,28 @@ export async function generateCanvas(intent: string): Promise<WidgetBody | null>
         "X-Title": "PILOT",
       },
       body: JSON.stringify({
-        model: OPENROUTER_MODEL,
+        model: getModel(),
         messages: [
-          { role: "system", content: schemaPrompt() },
+          { role: "system", content: schemaPrompt(contextText) },
           { role: "user", content: `Intent: ${intent}` },
         ],
         response_format: { type: "json_object" },
-        temperature: 0.5,
+        // Low temperature: when grounding in real figures, drift is the enemy.
+        temperature: 0.2,
       }),
     })
     if (!res.ok) return null
     const data = (await res.json()) as OpenAIResp
     const content = data.choices?.[0]?.message?.content
     if (!content) return null
-    return coerce(JSON.parse(stripFences(content)))
+    const parsed = JSON.parse(stripFences(content)) as Record<string, unknown>
+    const body = coerce(parsed)
+    if (!body) return null
+    const source =
+      typeof parsed.source === "string" && parsed.source.trim()
+        ? parsed.source.trim()
+        : undefined
+    return { body, source }
   } catch {
     return null
   }
@@ -161,7 +193,7 @@ export async function quickLine(query: string): Promise<string> {
         "X-Title": "PILOT",
       },
       body: JSON.stringify({
-        model: OPENROUTER_MODEL,
+        model: getModel(),
         messages: [
           {
             role: "system",
@@ -192,14 +224,15 @@ export async function paintCanvas(intent: string): Promise<string> {
     agent: "PILOT",
     status: "working",
   })
-  const body = await generateCanvas(intent)
-  if (!body) {
+  const result = await generateCanvas(intent)
+  if (!result) {
     store.updateTask(taskId, { status: "error" })
     return `I couldn't build that just now.`
   }
+  const { body, source } = result
   const agent = agentFor(body)
   store.updateTask(taskId, { agent })
-  store.addWidget(body, agent)
+  store.addWidget(body, agent, source)
   store.updateTask(taskId, { status: "done" })
 
   const kind =
