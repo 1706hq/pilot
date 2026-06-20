@@ -31,16 +31,16 @@ export function Wordmark({ className }: { className?: string }) {
       <div className="flex items-baseline justify-center font-semibold uppercase leading-none text-white/85 [text-shadow:0_0_20px_rgba(120,170,255,0.35)]">
         {letters.map((ch, i) => (
           <span key={ch} className="flex items-baseline">
-            <span className="text-[17px] tracking-[0.05em]">{ch}</span>
+            <span className="text-[22px] tracking-[0.05em]">{ch}</span>
             {i < letters.length - 1 ? (
-              <span aria-hidden className="mx-[2.5px] text-[17px] leading-none text-white/40">
+              <span aria-hidden className="mx-[2.5px] text-[22px] leading-none text-white/40">
                 .
               </span>
             ) : null}
           </span>
         ))}
       </div>
-      <div className="mt-[6px] text-[8.5px] font-medium uppercase tracking-[0.32em] text-white/30">
+      <div className="mt-[7px] text-[9px] font-semibold uppercase tracking-[0.3em] text-amber-300/90 [text-shadow:0_0_12px_rgba(252,211,77,0.45)]">
         Peter&apos;s Intelligent Life Operating Terminal
       </div>
     </div>
