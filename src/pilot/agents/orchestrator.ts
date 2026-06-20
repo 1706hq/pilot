@@ -37,6 +37,15 @@ const TOOLS = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "clear_canvas",
+      description:
+        "Clear/empty the canvas (the Runway — the panel to Peter's right): removes all cards, dashboards, invoices and files. You MUST call this tool to actually clear it — never just say you've cleared it without calling it. Call it whenever Peter says clear/wipe/empty/reset/get rid of the canvas, the Runway, the screen, or these, or says 'start fresh'.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
 ]
 
 interface ApiMessage {
@@ -136,6 +145,9 @@ export async function sendMessage(text: string, agentOverride?: AgentId) {
           if (tc.function.name === "show_on_canvas") {
             const args = JSON.parse(tc.function.arguments || "{}")
             result = await paintCanvas(String(args.intent ?? ""))
+          } else if (tc.function.name === "clear_canvas") {
+            usePilotStore.getState().clearWidgets()
+            result = "Cleared the Runway."
           }
         } catch (e) {
           result = `Tool error: ${e instanceof Error ? e.message : String(e)}`

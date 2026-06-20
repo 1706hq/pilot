@@ -1,8 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 
 import { PlaceholdersAndVanishInput } from "~/components/ui/placeholders-and-vanish-input"
+import { addContextFiles } from "~/pilot/storage/context"
+import { usePilotStore } from "~/pilot/state/store"
 
 function Icon({
   name,
@@ -60,6 +62,21 @@ export function ReferenceComposer({
   micActive?: boolean
 } = {}) {
   const [value, setValue] = useState("")
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const onAttach = (files: FileList | null) => {
+    if (!files?.length) return
+    void addContextFiles(files).then(({ added, skippedImages }) => {
+      const parts: string[] = []
+      if (added > 0)
+        parts.push(`Added ${added} file${added > 1 ? "s" : ""} to PILOT's context`)
+      if (skippedImages > 0)
+        parts.push(`skipped ${skippedImages} image${skippedImages > 1 ? "s" : ""}`)
+      const store = usePilotStore.getState()
+      store.setNotice(parts.join(" · ") || "Nothing added")
+      setTimeout(() => usePilotStore.getState().setNotice(null), 3500)
+    })
+  }
 
   return (
     <div className="composer-intro relative w-full">
@@ -115,8 +132,19 @@ export function ReferenceComposer({
             <Icon name="mic" className="relative" />
           </button>
 
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              onAttach(e.target.files)
+              e.target.value = ""
+            }}
+          />
           <button
             aria-label="Attach files"
+            onClick={() => fileRef.current?.click()}
             className="grid h-9 w-9 place-items-center rounded-full border border-white/8 bg-white/10 text-white/82 transition hover:bg-white/16 active:scale-95"
             data-click-effect
             type="button"

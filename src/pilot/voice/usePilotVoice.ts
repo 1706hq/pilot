@@ -25,14 +25,23 @@ import { voiceBridge } from "~/pilot/voice/voiceBridge"
 import { usePilotStore } from "~/pilot/state/store"
 import type { AgentId } from "~/pilot/types"
 
-/** Map the Canvas agent's CREW names onto our roster for colouring/attribution. */
+/**
+ * Map a crew name onto our roster (just STERLING + MARSHALL). The agent now
+ * speaks those two names; legacy CAPITAL/CONTROL/etc. are still tolerated so an
+ * older tool call doesn't fall through to PILOT.
+ */
 function mapCrew(name: string): { agent: AgentId; label: string } {
   const key = name.trim().toUpperCase()
-  const label = key.charAt(0) + key.slice(1).toLowerCase()
-  if (key === "CAPITAL") return { agent: "STERLING", label: "Capital" }
-  if (key === "CREW CHIEF" || key === "CONTROL" || key === "COURSE")
-    return { agent: "MARSHALL", label }
-  return { agent: "PILOT", label }
+  if (key === "STERLING" || key === "CAPITAL")
+    return { agent: "STERLING", label: "Sterling" }
+  if (
+    key === "MARSHALL" ||
+    key === "CONTROL" ||
+    key === "COURSE" ||
+    key === "CREW CHIEF"
+  )
+    return { agent: "MARSHALL", label: "Marshall" }
+  return { agent: "PILOT", label: "PILOT" }
 }
 
 async function fetchConversationToken(agentId: string, apiKey: string) {
@@ -78,6 +87,11 @@ export function usePilotVoice() {
       return `Peter has uploaded ${files.length} file(s): ${names}. They aren't text I can read (e.g. PDF or image), so I can see the names but not the contents.`
     }
     return `Files Peter has uploaded (${files.length}): ${names}\n\n${text}`
+  })
+  // Clear the Runway (right-hand canvas) — all cards/dashboards/invoices/files.
+  useConversationClientTool("clear_canvas", async () => {
+    usePilotStore.getState().clearWidgets()
+    return "Cleared the Runway."
   })
 
   // Drive the Orb from the conversation state.
