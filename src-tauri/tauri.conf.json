@@ -12,10 +12,12 @@
   "app": {
     "windows": [
       {
-        "title": "lumin",
+        "title": "PILOT",
         "width": 1280,
         "height": 860,
-        "decorations": false,
+        "decorations": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
         "transparent": false,
         "backgroundColor": "#050506",
         "minWidth": 480,

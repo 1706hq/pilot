@@ -1,0 +1,227 @@
+"use client"
+
+/**
+ * The client-side orchestrator: a streaming chat + tool-calling loop against
+ * OpenRouter (Gemini Flash). Streams tokens into the transcript and lets PILOT
+ * call show_on_canvas to render UI (invoices, documents, dashboards, charts)
+ * into the right sidebar — the same generator the voice path uses.
+ */
+
+import { paintCanvas } from "~/pilot/agents/canvas"
+import { buildSystemPrompt } from "~/pilot/agents/personas"
+import { getContextText } from "~/pilot/storage/context"
+import { OPENROUTER_MODEL } from "~/pilot/storage/config"
+import { usePilotStore } from "~/pilot/state/store"
+import type { AgentId, ChatMessage } from "~/pilot/types"
+
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+const MAX_TURNS = 5
+
+const TOOLS = [
+  {
+    type: "function",
+    function: {
+      name: "show_on_canvas",
+      description:
+        "Create and display UI on the canvas (the panel to Peter's right). Use for an INVOICE/bill, a DOCUMENT/report/brief/memo, a DASHBOARD of KPIs, or a single chart/table. Call this whenever Peter asks to make, draft, create, build, show, or pull up any of those.",
+      parameters: {
+        type: "object",
+        required: ["intent"],
+        properties: {
+          intent: {
+            type: "string",
+            description:
+              "What to create, with any details, e.g. 'invoice Acme Ltd £5,000 for the Q3 rebrand, net 30 days' or 'American Golf Week 20 KPI dashboard' or 'one-page brief on the Jessops turnaround'.",
+          },
+        },
+      },
+    },
+  },
+]
+
+interface ApiMessage {
+  role: "system" | "user" | "assistant" | "tool"
+  content: string | null
+  tool_calls?: ToolCall[]
+  tool_call_id?: string
+}
+
+interface ToolCall {
+  id: string
+  type: "function"
+  function: { name: string; arguments: string }
+}
+
+function toApiMessages(conversation: ChatMessage[]): ApiMessage[] {
+  return conversation
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }))
+}
+
+let inFlight: AbortController | null = null
+
+export async function sendMessage(text: string, agentOverride?: AgentId) {
+  const trimmed = text.trim()
+  if (!trimmed) return
+
+  const store = usePilotStore.getState()
+  const { config } = store
+  store.addMessage({ role: "user", content: trimmed })
+
+  if (!config.openRouterKey) {
+    store.addMessage({
+      role: "assistant",
+      agent: "PILOT",
+      content:
+        "I don't have an OpenRouter API key configured yet. Add it to `.env.local` (NEXT_PUBLIC_OPENROUTER_API_KEY) and reload.",
+    })
+    return
+  }
+
+  const agent: AgentId = agentOverride ?? store.activeAgent ?? "PILOT"
+  store.setActiveAgent(agent)
+  store.setPilotState("thinking")
+
+  const messages: ApiMessage[] = [
+    { role: "system", content: buildSystemPrompt(agent, getContextText()) },
+    ...toApiMessages(usePilotStore.getState().conversation),
+  ]
+
+  const assistantId = store.addMessage({
+    role: "assistant",
+    agent,
+    content: "",
+    streaming: true,
+  })
+
+  inFlight?.abort()
+  inFlight = new AbortController()
+
+  try {
+    for (let turn = 0; turn < MAX_TURNS; turn++) {
+      const res = await fetch(OPENROUTER_URL, {
+        method: "POST",
+        signal: inFlight.signal,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${config.openRouterKey}`,
+          "HTTP-Referer": "https://pilot.local",
+          "X-Title": "PILOT",
+        },
+        body: JSON.stringify({
+          model: OPENROUTER_MODEL,
+          messages,
+          tools: TOOLS,
+          tool_choice: "auto",
+          stream: true,
+          temperature: 0.6,
+        }),
+      })
+      if (!res.ok || !res.body) {
+        const detail = await res.text().catch(() => "")
+        throw new Error(`OpenRouter ${res.status}: ${detail.slice(0, 200)}`)
+      }
+
+      const { content, toolCalls } = await consumeStream(res.body, (delta) =>
+        usePilotStore.getState().appendToMessage(assistantId, delta)
+      )
+
+      if (toolCalls.length === 0) break // final text already streamed in
+
+      // Record the assistant's tool-call turn, run the tools, feed results back.
+      messages.push({ role: "assistant", content: content || null, tool_calls: toolCalls })
+      for (const tc of toolCalls) {
+        let result = "Done."
+        try {
+          if (tc.function.name === "show_on_canvas") {
+            const args = JSON.parse(tc.function.arguments || "{}")
+            result = await paintCanvas(String(args.intent ?? ""))
+          }
+        } catch (e) {
+          result = `Tool error: ${e instanceof Error ? e.message : String(e)}`
+        }
+        messages.push({ role: "tool", tool_call_id: tc.id, content: result })
+      }
+      // Loop: next completion streams PILOT's spoken confirmation into the bubble.
+    }
+
+    usePilotStore.getState().updateMessage(assistantId, { streaming: false })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    const current = usePilotStore.getState().conversation.find((m) => m.id === assistantId)
+    usePilotStore.getState().updateMessage(assistantId, {
+      streaming: false,
+      content: current?.content || `⚠️ ${message}`,
+    })
+  } finally {
+    usePilotStore.getState().setPilotState("idle")
+    inFlight = null
+  }
+}
+
+/** Parse an OpenAI-style SSE stream; emit content deltas, assemble tool calls. */
+async function consumeStream(
+  body: ReadableStream<Uint8Array>,
+  onDelta: (delta: string) => void
+): Promise<{ content: string; toolCalls: ToolCall[] }> {
+  const reader = body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ""
+  let content = ""
+  const toolAcc: Record<number, ToolCall> = {}
+
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split("\n")
+    buffer = lines.pop() ?? ""
+
+    for (const raw of lines) {
+      const line = raw.trim()
+      if (!line.startsWith("data:")) continue
+      const data = line.slice(5).trim()
+      if (data === "[DONE]") continue
+      let json: {
+        choices?: {
+          delta?: {
+            content?: string
+            tool_calls?: {
+              index: number
+              id?: string
+              function?: { name?: string; arguments?: string }
+            }[]
+          }
+        }[]
+      }
+      try {
+        json = JSON.parse(data)
+      } catch {
+        continue
+      }
+      const delta = json.choices?.[0]?.delta
+      if (!delta) continue
+      if (typeof delta.content === "string" && delta.content) {
+        content += delta.content
+        onDelta(delta.content)
+      }
+      for (const tc of delta.tool_calls ?? []) {
+        const acc = (toolAcc[tc.index] ??= {
+          id: "",
+          type: "function",
+          function: { name: "", arguments: "" },
+        })
+        if (tc.id) acc.id = tc.id
+        if (tc.function?.name) acc.function.name = tc.function.name
+        if (tc.function?.arguments) acc.function.arguments += tc.function.arguments
+      }
+    }
+  }
+
+  const toolCalls = Object.values(toolAcc).filter((t) => t.function.name)
+  // Ensure every tool call has an id (some providers omit it mid-stream).
+  toolCalls.forEach((t, i) => {
+    if (!t.id) t.id = `call_${i}`
+  })
+  return { content, toolCalls }
+}

@@ -57,11 +57,11 @@ void main(){
   float r = length(uv);
   float bloom = smoothstep(1.35, 0.08, r);
   float cloud = wave(uv, 0.1) * 0.5 + wave(uv * 1.7, 1.8) * 0.28 + wave(uv * 2.4, 3.1) * 0.14;
-  vec3 deep = vec3(0.006, 0.018, 0.044);
-  vec3 blue = vec3(0.045, 0.22, 0.52);
-  vec3 ice = vec3(0.55, 0.78, 1.0);
-  vec3 col = mix(deep, blue, bloom * (0.55 + cloud * 0.18));
-  col = mix(col, ice, smoothstep(0.58, 1.0, bloom) * 0.22);
+  vec3 deep = vec3(0.005, 0.013, 0.030);
+  vec3 blue = vec3(0.028, 0.12, 0.30);
+  vec3 ice = vec3(0.32, 0.48, 0.70);
+  vec3 col = mix(deep, blue, bloom * (0.4 + cloud * 0.14));
+  col = mix(col, ice, smoothstep(0.7, 1.0, bloom) * 0.08);
   col = hueShiftRGB(col, uHueShift);
 
   float scanline_val=sin(gl_FragCoord.y*uScanFreq)*0.5+0.5;

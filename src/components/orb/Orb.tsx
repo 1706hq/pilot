@@ -12,6 +12,8 @@ type OrbProps = {
   rotateOnHover?: boolean
   forceHoverState?: boolean
   backgroundColor?: string
+  /** Continuous rotation speed in rad/s, independent of hover. */
+  spinSpeed?: number
 }
 
 export default function Orb({
@@ -21,8 +23,22 @@ export default function Orb({
   rotateOnHover = true,
   forceHoverState = false,
   backgroundColor = "#000000",
+  spinSpeed = 0,
 }: OrbProps) {
   const ctnDom = useRef<HTMLDivElement | null>(null)
+
+  // Live, animatable values held in refs so prop changes update the shader
+  // smoothly (lerped in the rAF loop) without re-initialising WebGL.
+  const hueRef = useRef(hue)
+  const hoverIntensityRef = useRef(hoverIntensity)
+  const forceHoverRef = useRef(forceHoverState)
+  const spinSpeedRef = useRef(spinSpeed)
+  const bgRef = useRef(backgroundColor)
+  hueRef.current = hue
+  hoverIntensityRef.current = hoverIntensity
+  forceHoverRef.current = forceHoverState
+  spinSpeedRef.current = spinSpeed
+  bgRef.current = backgroundColor
 
   useEffect(() => {
     const container = ctnDom.current
@@ -118,9 +134,9 @@ export default function Orb({
         return vec4(colorIn.rgb / (a + 1e-5), a);
       }
 
-      const vec3 baseColor1 = vec3(0.611765, 0.262745, 0.996078);
-      const vec3 baseColor2 = vec3(0.298039, 0.760784, 0.913725);
-      const vec3 baseColor3 = vec3(0.062745, 0.078431, 0.600000);
+      const vec3 baseColor1 = vec3(1.000000, 0.654902, 0.286275);
+      const vec3 baseColor2 = vec3(0.321569, 0.556863, 0.960784);
+      const vec3 baseColor3 = vec3(0.047059, 0.078431, 0.149020);
       const float innerRadius = 0.48;
       const float noiseScale = 0.32;
 
@@ -272,14 +288,24 @@ export default function Orb({
       const dt = (time - lastTime) * 0.001
       lastTime = time
       program.uniforms.iTime.value = animate ? time * 0.001 : 0.75
-      program.uniforms.hue.value = hue
-      program.uniforms.hoverIntensity.value = hoverIntensity
-      program.uniforms.backgroundColor.value = hexToVec3(backgroundColor)
 
-      const effectiveHover = forceHoverState ? 1 : targetHover
+      // Smoothly lerp the live values toward their current targets so state
+      // changes (e.g. idle -> thinking) glide rather than snap.
+      program.uniforms.hue.value = lerpAngle(
+        program.uniforms.hue.value,
+        hueRef.current,
+        0.08
+      )
+      program.uniforms.hoverIntensity.value +=
+        (hoverIntensityRef.current - program.uniforms.hoverIntensity.value) * 0.1
+      program.uniforms.backgroundColor.value = hexToVec3(bgRef.current)
+
+      const effectiveHover = forceHoverRef.current ? 1 : targetHover
       program.uniforms.hover.value +=
         (effectiveHover - program.uniforms.hover.value) * 0.1
 
+      // Continuous spin from spinSpeed, plus the hover-driven rotation.
+      currentRot += dt * spinSpeedRef.current
       if (rotateOnHover && effectiveHover > 0.5) {
         currentRot += dt * rotationSpeed
       }
@@ -289,6 +315,10 @@ export default function Orb({
     }
 
     window.addEventListener("resize", resize)
+    // Also react to container size changes (e.g. the orb shrinking to the top
+    // when a conversation starts) — window resize alone wouldn't catch these.
+    const resizeObserver = new ResizeObserver(resize)
+    resizeObserver.observe(container)
     container.addEventListener("mousemove", handleMouseMove)
     container.addEventListener("mouseleave", handleMouseLeave)
     resize()
@@ -301,6 +331,7 @@ export default function Orb({
     return () => {
       cancelAnimationFrame(rafId)
       window.removeEventListener("resize", resize)
+      resizeObserver.disconnect()
       container.removeEventListener("mousemove", handleMouseMove)
       container.removeEventListener("mouseleave", handleMouseLeave)
       if (gl.canvas.parentElement === container) {
@@ -308,16 +339,21 @@ export default function Orb({
       }
       gl.getExtension("WEBGL_lose_context")?.loseContext()
     }
-  }, [
-    animate,
-    hue,
-    hoverIntensity,
-    rotateOnHover,
-    forceHoverState,
-    backgroundColor,
-  ])
+    // Only re-initialise WebGL for structural prop changes. Visual values
+    // (hue, hoverIntensity, forceHoverState, spinSpeed, backgroundColor) are
+    // read live from refs inside the loop, so they never trigger a teardown.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [animate, rotateOnHover])
 
   return <div ref={ctnDom} className="orb-container" />
+}
+
+/** Shortest-path angular lerp (degrees) so hue transitions take the short way round. */
+function lerpAngle(current: number, target: number, t: number) {
+  let diff = (target - current) % 360
+  if (diff > 180) diff -= 360
+  if (diff < -180) diff += 360
+  return current + diff * t
 }
 
 function hslToRgb(h: number, s: number, l: number) {

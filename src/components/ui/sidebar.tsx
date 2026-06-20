@@ -10,10 +10,15 @@ interface Links {
   icon: React.JSX.Element | React.ReactNode;
 }
 
+type SidebarSide = "left" | "right";
+
 interface SidebarContextProps {
   open: boolean;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
   animate: boolean;
+  side: SidebarSide;
+  widthOpen: number;
+  widthClosed: number;
 }
 
 const SidebarContext = createContext<SidebarContextProps | undefined>(
@@ -33,11 +38,17 @@ export const SidebarProvider = ({
   open: openProp,
   setOpen: setOpenProp,
   animate = true,
+  side = "left",
+  widthOpen = 260,
+  widthClosed = 68,
 }: {
   children: React.ReactNode;
   open?: boolean;
   setOpen?: React.Dispatch<React.SetStateAction<boolean>>;
   animate?: boolean;
+  side?: SidebarSide;
+  widthOpen?: number;
+  widthClosed?: number;
 }) => {
   const [openState, setOpenState] = useState(false);
 
@@ -45,7 +56,9 @@ export const SidebarProvider = ({
   const setOpen = setOpenProp !== undefined ? setOpenProp : setOpenState;
 
   return (
-    <SidebarContext.Provider value={{ open, setOpen, animate: animate }}>
+    <SidebarContext.Provider
+      value={{ open, setOpen, animate, side, widthOpen, widthClosed }}
+    >
       {children}
     </SidebarContext.Provider>
   );
@@ -56,14 +69,27 @@ export const Sidebar = ({
   open,
   setOpen,
   animate,
+  side,
+  widthOpen,
+  widthClosed,
 }: {
   children: React.ReactNode;
   open?: boolean;
   setOpen?: React.Dispatch<React.SetStateAction<boolean>>;
   animate?: boolean;
+  side?: SidebarSide;
+  widthOpen?: number;
+  widthClosed?: number;
 }) => {
   return (
-    <SidebarProvider open={open} setOpen={setOpen} animate={animate}>
+    <SidebarProvider
+      open={open}
+      setOpen={setOpen}
+      animate={animate}
+      side={side}
+      widthOpen={widthOpen}
+      widthClosed={widthClosed}
+    >
       {children}
     </SidebarProvider>
   );
@@ -83,16 +109,21 @@ export const DesktopSidebar = ({
   children,
   ...props
 }: React.ComponentProps<typeof motion.div>) => {
-  const { open, setOpen, animate } = useSidebar();
+  const { open, setOpen, animate, side, widthOpen, widthClosed } = useSidebar();
   return (
     <>
       <motion.div
         className={cn(
-          "hidden h-full w-[260px] shrink-0 border-r border-white/10 bg-black/55 px-3 pb-4 pt-10 text-white backdrop-blur-2xl md:flex md:flex-col",
+          "hidden h-full shrink-0 bg-black/55 px-3 pb-4 pt-10 text-white backdrop-blur-2xl md:flex md:flex-col",
+          side === "right" ? "border-l border-white/10" : "border-r border-white/10",
           className
         )}
         animate={{
-          width: animate ? (open ? "260px" : "68px") : "260px",
+          width: animate
+            ? open
+              ? `${widthOpen}px`
+              : `${widthClosed}px`
+            : `${widthOpen}px`,
         }}
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         onMouseEnter={() => setOpen(true)}
@@ -110,7 +141,8 @@ export const MobileSidebar = ({
   children,
   ...props
 }: React.ComponentProps<"div">) => {
-  const { open, setOpen } = useSidebar();
+  const { open, setOpen, side } = useSidebar();
+  const offscreen = side === "right" ? "100%" : "-100%";
   return (
     <>
       <div
@@ -128,9 +160,9 @@ export const MobileSidebar = ({
         <AnimatePresence>
           {open && (
             <motion.div
-              initial={{ x: "-100%", opacity: 0 }}
+              initial={{ x: offscreen, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
-              exit={{ x: "-100%", opacity: 0 }}
+              exit={{ x: offscreen, opacity: 0 }}
               transition={{
                 duration: 0.3,
                 ease: "easeInOut",

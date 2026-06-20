@@ -17,8 +17,8 @@ import { cn } from "../libs/utils"
 const containerStyle: CSSProperties = {
   alignItems: "center",
   display: "flex",
-  gap: 8,
-  height: 32,
+  gap: 15,
+  height: 40,
   padding: "0 12px",
 }
 
@@ -26,8 +26,8 @@ const dotStyle: CSSProperties = {
   border: "1px solid rgba(0,0,0,.12)",
   borderRadius: 999,
   color: "rgba(0,0,0,.62)",
-  height: 12,
-  width: 12,
+  height: 15,
+  width: 15,
 }
 
 export function MacOS({ className, style, ...props }: HTMLProps<HTMLDivElement>) {

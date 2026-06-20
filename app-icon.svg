@@ -1,0 +1,18 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="120" y1="120" x2="904" y2="904" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2b62c4"/>
+      <stop offset="0.5" stop-color="#0a1426"/>
+      <stop offset="1" stop-color="#c2620e"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="512" cy="430" r="430" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#bcd6ff" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#bcd6ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <!-- Rounded-square (macOS squircle-ish) gradient backdrop with padding -->
+  <rect x="76" y="76" width="872" height="872" rx="208" fill="url(#bg)"/>
+  <rect x="76" y="76" width="872" height="872" rx="208" fill="url(#glow)"/>
+  <!-- PILOT ring (from pilot.svg), scaled and centred -->
+  <circle cx="512" cy="512" r="220" fill="none" stroke="#ffffff" stroke-width="44"/>
+</svg>

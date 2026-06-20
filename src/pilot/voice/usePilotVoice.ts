@@ -1,0 +1,159 @@
+"use client"
+
+/**
+ * Voice loop — wraps the ElevenLabs Conversational AI session (provider-based
+ * SDK) and exposes a simple start/stop/toggle. The agent's status + speaking
+ * state drive `pilotState` (so the Orb reacts), and its client tools are wired
+ * to the same store actions as the text path: show_on_canvas paints dashboards,
+ * crew_working lights a task, live_search reads a line aloud.
+ *
+ * Must be used inside a <ConversationProvider> (see VoiceProvider).
+ */
+
+import { useCallback, useEffect } from "react"
+import {
+  useConversationClientTool,
+  useConversationControls,
+  useConversationMode,
+  useConversationStatus,
+} from "@elevenlabs/react"
+
+import { paintCanvas, quickLine } from "~/pilot/agents/canvas"
+import { getContextText } from "~/pilot/storage/context"
+import { pickVoiceGreeting } from "~/pilot/voice/greetings"
+import { voiceBridge } from "~/pilot/voice/voiceBridge"
+import { usePilotStore } from "~/pilot/state/store"
+import type { AgentId } from "~/pilot/types"
+
+/** Map the Canvas agent's CREW names onto our roster for colouring/attribution. */
+function mapCrew(name: string): { agent: AgentId; label: string } {
+  const key = name.trim().toUpperCase()
+  const label = key.charAt(0) + key.slice(1).toLowerCase()
+  if (key === "CAPITAL") return { agent: "STERLING", label: "Capital" }
+  if (key === "CREW CHIEF" || key === "CONTROL" || key === "COURSE")
+    return { agent: "MARSHALL", label }
+  return { agent: "PILOT", label }
+}
+
+async function fetchConversationToken(agentId: string, apiKey: string) {
+  const res = await fetch(
+    `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${agentId}`,
+    { headers: { "xi-api-key": apiKey } }
+  )
+  if (!res.ok) throw new Error(`token request failed: ${res.status}`)
+  const data = (await res.json()) as { token: string }
+  return data.token
+}
+
+export function usePilotVoice() {
+  const setPilotState = usePilotStore((s) => s.setPilotState)
+  const config = usePilotStore((s) => s.config)
+
+  const controls = useConversationControls()
+  const { status } = useConversationStatus()
+  const { isSpeaking } = useConversationMode()
+
+  // Client tools — names must match the agent's tool config.
+  useConversationClientTool("show_on_canvas", async (p) =>
+    paintCanvas(String((p as { intent?: string })?.intent ?? ""))
+  )
+  useConversationClientTool("live_search", async (p) =>
+    quickLine(String((p as { query?: string })?.query ?? ""))
+  )
+  useConversationClientTool("crew_working", async (p) => {
+    const { agent, label } = mapCrew(String((p as { agent?: string })?.agent ?? ""))
+    const store = usePilotStore.getState()
+    const id = store.addTask({ label: `${label} on it`, agent, status: "working" })
+    setTimeout(() => usePilotStore.getState().updateTask(id, { status: "done" }), 4000)
+    return "lit"
+  })
+  // Read the CURRENT uploaded context on demand — always fresh, so files added
+  // mid-session are picked up without restarting the conversation.
+  useConversationClientTool("read_context", async () => {
+    const files = usePilotStore.getState().contextFiles
+    if (files.length === 0) return "Peter hasn't uploaded any files yet."
+    const names = files.map((f) => f.name).join(", ")
+    const text = getContextText(8000)
+    if (!text) {
+      return `Peter has uploaded ${files.length} file(s): ${names}. They aren't text I can read (e.g. PDF or image), so I can see the names but not the contents.`
+    }
+    return `Files Peter has uploaded (${files.length}): ${names}\n\n${text}`
+  })
+
+  // Drive the Orb from the conversation state.
+  useEffect(() => {
+    if (status === "connecting") setPilotState("connecting")
+    else if (status === "connected")
+      setPilotState(isSpeaking ? "speaking" : "listening")
+    else setPilotState("idle")
+  }, [status, isSpeaking, setPilotState])
+
+  // Keep the bridge populated so context uploads can push into a live session.
+  useEffect(() => {
+    voiceBridge.active = status === "connected"
+    voiceBridge.sendContextualUpdate = (text: string) => {
+      try {
+        controls.sendContextualUpdate(text)
+      } catch {
+        /* not connected */
+      }
+    }
+  }, [status, controls])
+
+  const start = useCallback(async () => {
+    const store = usePilotStore.getState()
+    store.setVoiceError(null)
+    if (!config.elevenLabsAgentId || !config.elevenLabsKey) {
+      store.setVoiceError("Voice isn't configured (missing ElevenLabs key or agent id).")
+      return
+    }
+    // Mic access must succeed before we bother with the session.
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream.getTracks().forEach((t) => t.stop())
+    } catch {
+      store.setVoiceError(
+        "Microphone blocked. Allow mic access for this site (address-bar icon) and try again."
+      )
+      return
+    }
+    setPilotState("connecting")
+    try {
+      const token = await fetchConversationToken(
+        config.elevenLabsAgentId,
+        config.elevenLabsKey
+      )
+      // Inject a fresh, witty opener each session via the {{greeting}} dynamic
+      // variable on the agent's first message.
+      const context = getContextText(4000)
+      controls.startSession({
+        conversationToken: token,
+        connectionType: "webrtc",
+        dynamicVariables: {
+          greeting: pickVoiceGreeting(),
+          context: context || "(no files uploaded yet)",
+        },
+      })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      // eslint-disable-next-line no-console
+      console.error("[pilot-voice] start failed", err)
+      usePilotStore.getState().setVoiceError(`Couldn't connect: ${msg}`)
+      setPilotState("idle")
+    }
+  }, [config.elevenLabsAgentId, config.elevenLabsKey, controls, setPilotState])
+
+  const stop = useCallback(() => {
+    controls.endSession()
+    setPilotState("idle")
+  }, [controls, setPilotState])
+
+  const active = status === "connected" || status === "connecting"
+
+  const toggle = useCallback(() => {
+    if (active) stop()
+    else void start()
+  }, [active, start, stop])
+
+  return { status, isSpeaking, active, start, stop, toggle }
+}

@@ -21,6 +21,9 @@ export function PlaceholdersAndVanishInput({
   onChange,
   onSubmit,
   value: controlledValue,
+  formId,
+  hideSubmitButton = false,
+  disableVanish = false,
 }: {
   buttonClassName?: string;
   canvasClassName?: string;
@@ -30,6 +33,12 @@ export function PlaceholdersAndVanishInput({
   placeholderClassName?: string;
   onChange: (e: ChangeEvent<HTMLInputElement>) => void;
   onSubmit: (e: FormEvent<HTMLFormElement>) => void;
+  /** Optional id applied to the form so an external button can submit it. */
+  formId?: string;
+  /** Hide the built-in submit button (e.g. when rendering one elsewhere). */
+  hideSubmitButton?: boolean;
+  /** When true, submit just clears the field — no pixel-dissolve animation. */
+  disableVanish?: boolean;
   /**
    * Optional externally-controlled value. When provided and different from the
    * internal value, it is synced in — used to stream dictated (speech-to-text)
@@ -75,7 +84,17 @@ export function PlaceholdersAndVanishInput({
   // Sync an externally-controlled value (e.g. streamed speech-to-text) in,
   // without clobbering local typing while no external value is driving it.
   useEffect(() => {
-    if (controlledValue !== undefined && controlledValue !== value && !animating) {
+    if (controlledValue === undefined) return;
+    // An external clear (e.g. after submit) clears the field — but NOT while the
+    // vanish animation is mid-flight: clearing `value` re-runs draw() which wipes
+    // the pixel buffer the dissolve is reading from. During animation we let the
+    // animation finish and clear itself; we only force-clear when idle (e.g. a
+    // programmatic reset or streamed STT value being cleared).
+    if (controlledValue === "" && value !== "" && !animating) {
+      setValue("");
+      return;
+    }
+    if (controlledValue !== value && !animating) {
       setValue(controlledValue);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -183,7 +202,7 @@ export function PlaceholdersAndVanishInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !animating) {
+    if (e.key === "Enter" && !animating && !disableVanish) {
       vanishAndSubmit();
     }
   };
@@ -204,11 +223,17 @@ export function PlaceholdersAndVanishInput({
 
   const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (disableVanish) {
+      onSubmit && onSubmit(e);
+      setValue("");
+      return;
+    }
     vanishAndSubmit();
     onSubmit && onSubmit(e);
   };
   return (
     <form
+      id={formId}
       className={cn(
         "relative h-12 w-full overflow-visible bg-transparent transition duration-200",
         className
@@ -247,6 +272,7 @@ export function PlaceholdersAndVanishInput({
         type="submit"
         className={cn(
           "absolute right-0 top-1/2 z-50 flex -translate-y-1/2 items-center justify-center rounded-full transition duration-200",
+          hideSubmitButton && "hidden",
           buttonClassName
         )}
       >
