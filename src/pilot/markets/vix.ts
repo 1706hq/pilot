@@ -6,13 +6,13 @@
  * the VIX is built from S&P 500 options, so it's the most derivative-native
  * number there is. This is NOT the future FALCON markets agent.
  *
- * Source: Twelve Data (free tier, symbol "VIX"). Chosen because it's
- * CORS-enabled, so the same plain `fetch` works in BOTH the browser dev server
- * and the native Tauri webview — no Tauri HTTP plugin needed. The key follows
- * the existing NEXT_PUBLIC_* pattern (see `storage/config.ts`).
- *
- * Returns null on any failure, or when no key is configured — the HUD then
- * quietly hides the line. Never throws, never surfaces an error to Peter.
+ * Source (keyless by default): Yahoo Finance's VIX chart endpoint, reached via
+ * a lightweight public CORS proxy so the same `fetch` works in BOTH the browser
+ * dev server and the native Tauri webview (Yahoo itself sends no CORS headers).
+ * We only ever send a public Yahoo URL through the proxy — no keys, no user
+ * data. If NEXT_PUBLIC_TWELVEDATA_KEY is set it's used directly instead (no
+ * proxy). Either way: returns null on any failure — the HUD then quietly hides
+ * the line. Never throws, never surfaces an error to Peter.
  */
 
 import { glowVisual } from "~/pilot/state/visuals"
@@ -24,13 +24,14 @@ export interface VixQuote {
   isOpen: boolean
 }
 
-const KEY = process.env.NEXT_PUBLIC_TWELVEDATA_KEY
+const TWELVE_DATA_KEY = process.env.NEXT_PUBLIC_TWELVEDATA_KEY
 
-export async function fetchVix(): Promise<VixQuote | null> {
-  if (!KEY) return null
+/** Optional, direct provider — used only when a key is configured. */
+async function fromTwelveData(): Promise<VixQuote | null> {
+  if (!TWELVE_DATA_KEY) return null
   try {
     const res = await fetch(
-      `https://api.twelvedata.com/quote?symbol=VIX&apikey=${KEY}`
+      `https://api.twelvedata.com/quote?symbol=VIX&apikey=${TWELVE_DATA_KEY}`
     )
     if (!res.ok) return null
     const j = (await res.json()) as {
@@ -45,6 +46,39 @@ export async function fetchVix(): Promise<VixQuote | null> {
   } catch {
     return null
   }
+}
+
+/** Keyless default — Yahoo's VIX chart via a CORS proxy. */
+async function fromYahoo(): Promise<VixQuote | null> {
+  try {
+    const yahoo = "https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX"
+    const res = await fetch(`https://corsproxy.io/?url=${encodeURIComponent(yahoo)}`)
+    if (!res.ok) return null
+    const j = (await res.json()) as {
+      chart?: {
+        result?: {
+          meta?: {
+            regularMarketPrice?: number
+            chartPreviousClose?: number
+            marketState?: string
+          }
+        }[]
+      }
+    }
+    const m = j?.chart?.result?.[0]?.meta
+    const value = Number(m?.regularMarketPrice)
+    const prevClose = Number(m?.chartPreviousClose)
+    if (!Number.isFinite(value) || !Number.isFinite(prevClose)) return null
+    const state = m?.marketState
+    // Only claim "closed" when we actually know it; never guess wrong.
+    return { value, prevClose, isOpen: typeof state === "string" ? state === "REGULAR" : true }
+  } catch {
+    return null
+  }
+}
+
+export async function fetchVix(): Promise<VixQuote | null> {
+  return (await fromTwelveData()) ?? (await fromYahoo())
 }
 
 export interface VixCondition {
