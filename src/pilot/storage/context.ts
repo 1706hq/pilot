@@ -111,13 +111,19 @@ function isTextLike(file: File): boolean {
   return file.type.startsWith("text/") || TEXT_EXT.test(file.name)
 }
 
+function isPdf(file: File): boolean {
+  return PDF_EXT.test(file.name) || file.type === "application/pdf"
+}
+
 function isExtractable(file: File): boolean {
-  return (
-    PDF_EXT.test(file.name) ||
-    DOCX_EXT.test(file.name) ||
-    SHEET_EXT.test(file.name) ||
-    file.type === "application/pdf"
-  )
+  return DOCX_EXT.test(file.name) || SHEET_EXT.test(file.name)
+}
+
+/** Best-effort company label from a filename, for the knowledge base. */
+function deriveCompany(name: string): string {
+  const stem = name.replace(/\.[a-z0-9]+$/i, "")
+  if (/\bAGT\b|american golf/i.test(stem)) return "American Golf"
+  return stem
 }
 
 /**
@@ -170,6 +176,7 @@ export async function addContextFiles(
   const existing = readAll()
   const byName = new Map(existing.map((f) => [f.name, f]))
   const files: AddedFile[] = []
+  const pdfQueue: File[] = []
   let added = 0
   let skippedImages = 0
 
@@ -184,7 +191,14 @@ export async function addContextFiles(
     let status: ContextFileStatus = "binary"
     let outcome: AddedFile["outcome"] = "binary"
 
-    if (isTextLike(file)) {
+    if (isPdf(file)) {
+      // PDFs go through BLACKBOX (vision, page-by-page, grounded) — NOT a naive
+      // text dump. Stored name-only here; the grounded knowledge base is the
+      // real source of truth at query time.
+      pdfQueue.push(file)
+      status = "extracted"
+      outcome = "extracted"
+    } else if (isTextLike(file)) {
       try {
         text = (await file.text()).slice(0, PER_FILE_CHARS)
         status = "text"
@@ -227,6 +241,19 @@ export async function addContextFiles(
   const merged = Array.from(byName.values())
   writeAll(merged)
   syncStore(merged)
+
+  // Kick off BLACKBOX for each PDF as a background job (render → extract → audit
+  // → consolidate → analyse → store). Long-running; progress shows in the Tasks
+  // feed. Dynamically imported so pdf.js only loads when a PDF is ingested.
+  for (const pdf of pdfQueue) {
+    void import("~/pilot/analyst/run").then(({ ingestDocument }) =>
+      ingestDocument(pdf, {
+        docId: pdf.name,
+        company: deriveCompany(pdf.name),
+        period: "",
+      })
+    )
+  }
 
   // If a voice session is live, push the new context straight into it so PILOT
   // knows immediately — no need to wait for him to call read_context.

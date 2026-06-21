@@ -46,17 +46,33 @@ const PROMPTS: Record<AgentId, string> = {
   MARSHALL,
 }
 
-/** Build the system prompt for an agent, optionally appending user context. */
-export function buildSystemPrompt(agent: AgentId, contextText?: string): string {
+/**
+ * Build the system prompt for an agent. `kbContext` is BLACKBOX's grounded,
+ * page-cited ledger/insights retrieved for the current question — the
+ * authoritative source of truth. `contextText` is raw uploaded text (the
+ * fallback for files BLACKBOX hasn't processed, e.g. plain notes).
+ */
+export function buildSystemPrompt(
+  agent: AgentId,
+  contextText?: string,
+  kbContext?: string
+): string {
   const base = PROMPTS[agent] ?? PILOT_ONLY
   let prompt = `${base}\n\n${PETER_JONES_DOSSIER}
 
-NOTE on the background above: it is who Peter is, not his live management data. Any figures in it (turnover, store counts, valuations) are rough public estimates for context only — never present them as his current numbers. For anything financial, defer to his uploaded files below; if they conflict with the background, trust the upload and say so.`
-  if (contextText) {
-    prompt += `\n\n## Context Peter has uploaded — your source of truth for his real figures (use across this and future conversations)\n${contextText}`
+NOTE on the background above: it is who Peter is, not his live management data. Any figures in it (turnover, store counts, valuations) are rough public estimates for context only — never present them as his current numbers. For anything financial, defer to his verified data below; if they conflict, trust the verified data and say so.`
+
+  if (kbContext) {
+    prompt += `\n\n## VERIFIED DATA (BLACKBOX) — your authoritative source of truth
+These figures were extracted page-by-page from Peter's uploaded documents, audited and reconciled. Each carries its source page [pN].
+RULES: Answer using ONLY these figures. Quote them exactly (signs, units). When you state a number, cite its page like "(p11)". If the answer isn't in this data, say plainly it's not in the uploaded document — do NOT guess or fall back on general knowledge.
+
+${kbContext}`
+  } else if (contextText) {
+    prompt += `\n\n## Context Peter has uploaded — your source of truth for his real figures\n${contextText}`
   } else {
-    prompt += `\n\n## No files uploaded yet
-Peter hasn't uploaded any documents. You therefore do NOT have his real financials or KPIs. If he asks for a company's numbers, say plainly that nothing's been uploaded for it yet and offer to build from the real data once he adds it — don't fall back on the background estimates above.`
+    prompt += `\n\n## No data uploaded yet
+Peter hasn't uploaded any documents BLACKBOX has processed. You do NOT have his real financials or KPIs. If he asks for a company's numbers, say plainly that nothing's been uploaded for it yet and offer to build from the real data once he adds it — don't fall back on the background estimates above.`
   }
   return prompt
 }
