@@ -9,6 +9,7 @@
 
 import { paintCanvas } from "~/pilot/agents/canvas"
 import { buildSystemPrompt } from "~/pilot/agents/personas"
+import { retrieveContext } from "~/pilot/analyst/store"
 import { getContextText } from "~/pilot/storage/context"
 import { getModel } from "~/pilot/storage/config"
 import { usePilotStore } from "~/pilot/state/store"
@@ -91,8 +92,10 @@ export async function sendMessage(text: string, agentOverride?: AgentId) {
   store.setActiveAgent(agent)
   store.setPilotState("thinking")
 
+  // BLACKBOX: pull the verified, page-cited facts relevant to this question.
+  const kbContext = retrieveContext(trimmed)
   const messages: ApiMessage[] = [
-    { role: "system", content: buildSystemPrompt(agent, getContextText()) },
+    { role: "system", content: buildSystemPrompt(agent, getContextText(), kbContext) },
     ...toApiMessages(usePilotStore.getState().conversation),
   ]
 

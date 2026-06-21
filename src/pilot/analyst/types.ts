@@ -56,12 +56,16 @@ export interface LedgerRecord {
   metric: string // e.g. "Despatched Sales", "Margin"
   dimension: string // e.g. "Retail", "Ecomm", "Clubs", "Total AGT"
   grain: string // "Last Week" | "MTD" | "N6W" | "FY forecast" | ...
+  /** The headline figure for the row — Actual where present. */
   value: number
   unit: Unit
+  bud?: number
   vsBud?: number
   vsBudPct?: number
   vsLY?: number
   lflPct?: number
+  /** The page section/table the row came from, for disambiguation. */
+  table?: string
   sourcePage: number
   confidence: number
 }

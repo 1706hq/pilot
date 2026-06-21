@@ -18,7 +18,7 @@ import type { ExtractedPage } from "~/pilot/analyst/types"
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 /** Strongest vision model wins here — Peter's trust depends on the numbers. */
-export const VISION_MODEL = "google/gemini-2.5-pro"
+export const VISION_MODEL = "google/gemini-3.1-pro-preview"
 
 export const EXTRACT_PROMPT = `You are transcribing ONE page of a financial trade pack for an audit trail. Output ONLY a JSON object — no prose, no markdown fences.
 

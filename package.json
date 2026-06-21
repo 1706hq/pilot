@@ -23,6 +23,7 @@
     "motion": "^12.40.0",
     "next": "^16.2.9",
     "ogl": "^1.0.11",
+    "pdfjs-dist": "^6.0.227",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "tailwind-merge": "^3.6.0",
