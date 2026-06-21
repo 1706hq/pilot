@@ -15,11 +15,24 @@ import { usePilotStore } from "~/pilot/state/store"
 import {
   DEFAULT_AGENT_ID,
   DEFAULT_MODEL,
+  sanitizeKey,
   saveConfig,
   testElevenLabs,
   testOpenRouterKey,
   type KeyTest,
 } from "~/pilot/storage/config"
+
+/**
+ * Route two pasted keys to the right slots by their unmistakable prefixes
+ * (OpenRouter = "sk-or-", ElevenLabs = "sk_"), so it doesn't matter which box
+ * each was pasted into. Falls back to as-entered if they can't be told apart.
+ */
+function classifyKeys(a: string, b: string): { or: string; el: string } {
+  const vals = [sanitizeKey(a), sanitizeKey(b)]
+  const or = vals.find((v) => v.startsWith("sk-or-"))
+  const el = vals.find((v) => v.startsWith("sk_") && !v.startsWith("sk-or-"))
+  return { or: or ?? sanitizeKey(a), el: el ?? sanitizeKey(b) }
+}
 
 function Field({
   label,
@@ -138,9 +151,13 @@ export function SettingsModal() {
   const runTest = async () => {
     setTesting(true)
     setResults(null)
+    // Sort the two keys into the right slots first, then test + show the fix.
+    const { or: orKey, el: elKey } = classifyKeys(openRouterKey, elevenLabsKey)
+    setOpenRouterKey(orKey)
+    setElevenLabsKey(elKey)
     const [or, el] = await Promise.all([
-      testOpenRouterKey(openRouterKey),
-      testElevenLabs(elevenLabsKey, agentId || DEFAULT_AGENT_ID),
+      testOpenRouterKey(orKey),
+      testElevenLabs(elKey, agentId || DEFAULT_AGENT_ID),
     ])
     setResults({ or, el })
     setTesting(false)
@@ -157,9 +174,12 @@ export function SettingsModal() {
   }, [open, setOpen])
 
   const onSave = () => {
+    const { or: orKey, el: elKey } = classifyKeys(openRouterKey, elevenLabsKey)
+    setOpenRouterKey(orKey)
+    setElevenLabsKey(elKey)
     saveConfig({
-      openRouterKey,
-      elevenLabsKey,
+      openRouterKey: orKey,
+      elevenLabsKey: elKey,
       elevenLabsAgentId: agentId || DEFAULT_AGENT_ID,
       model: model || DEFAULT_MODEL,
     })
