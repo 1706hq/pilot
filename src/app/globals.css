@@ -263,9 +263,46 @@ body {
   animation: hud-breathe 6s ease-in-out infinite;
 }
 
+/* CoreOrb — the glowing reactor core. Bloom breathes; core pulses. Both are
+   transform/opacity only (compositor-friendly). Duration is set per state. */
+@keyframes core-bloom {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: translate(-50%, -50%) scale(0.95);
+  }
+  50% {
+    opacity: 0.9;
+    transform: translate(-50%, -50%) scale(1.1);
+  }
+}
+
+.core-bloom {
+  border-radius: 9999px;
+  animation: core-bloom 4.8s ease-in-out infinite;
+}
+
+@keyframes core-pulse {
+  0%,
+  100% {
+    transform: scale(0.96);
+    filter: brightness(0.96);
+  }
+  50% {
+    transform: scale(1.05);
+    filter: brightness(1.12);
+  }
+}
+
+.core-pulse {
+  animation: core-pulse 4.8s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pilot-breathe,
-  .hud-breathe {
+  .hud-breathe,
+  .core-bloom,
+  .core-pulse {
     animation: none;
   }
 }

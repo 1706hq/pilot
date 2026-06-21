@@ -18,7 +18,7 @@ import { cn } from "~/lib/utils"
 import { sendMessage } from "~/pilot/agents/orchestrator"
 import { usePilotVoice } from "~/pilot/voice/usePilotVoice"
 import { useWakeWord } from "~/pilot/voice/useWakeWord"
-import PilotOrb from "~/pilot/state/PilotOrb"
+import { CoreOrb } from "~/components/orb/CoreOrb"
 import { usePilotStore } from "~/pilot/state/store"
 import { glowVisual } from "~/pilot/state/visuals"
 import { initConfig } from "~/pilot/storage/config"
@@ -197,25 +197,13 @@ function HomeView({ greeting, phase }: { greeting: Greeting; phase: number }) {
           )}
         />
 
-        {/* Idle heartbeat — the outer glow breathes when PILOT is resting. */}
-        <div
-          className={cn(
-            "absolute left-1/2 top-1/2 aspect-square w-[130%] -translate-x-1/2 -translate-y-1/2 rounded-full transition-opacity duration-700",
-            pilotState === "idle" ? "pilot-breathe" : "opacity-0"
-          )}
-          style={{
-            background:
-              "radial-gradient(circle, rgba(56,151,255,0.35) 0%, rgba(56,151,255,0.12) 42%, rgba(56,151,255,0) 68%)",
-          }}
-        />
-
         <button
           type="button"
           aria-label={voice.active ? "Stop voice session" : "Start voice session"}
           onClick={() => voice.toggle()}
-          className="group relative grid size-full cursor-pointer place-items-center rounded-full drop-shadow-[0_0_52px_rgba(56,151,255,0.46)]"
+          className="group relative grid size-full cursor-pointer place-items-center rounded-full"
         >
-          <PilotOrb />
+          <CoreOrb />
         </button>
       </div>
 
