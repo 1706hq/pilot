@@ -19,7 +19,7 @@ import {
 } from "@elevenlabs/react"
 
 import { paintCanvas, quickLine } from "~/pilot/agents/canvas"
-import { knowledgeSummary } from "~/pilot/analyst/store"
+import { knowledgeSummary, retrieveContext } from "~/pilot/analyst/store"
 import { getContextText } from "~/pilot/storage/context"
 import { pickVoiceGreeting } from "~/pilot/voice/greetings"
 import { voiceBridge } from "~/pilot/voice/voiceBridge"
@@ -119,6 +119,14 @@ export function usePilotVoice() {
     }
     if (parts.length === 0) return "Peter hasn't uploaded any files yet."
     return parts.join("\n\n")
+  })
+  // Query Peter's analysed documents (BLACKBOX) for a SPECIFIC question — the
+  // same per-query retrieval the text chat uses, so voice has identical access
+  // to the full ledger (every figure page-cited), not just the static summary.
+  useConversationClientTool("query_data", async (p) => {
+    const question = String((p as { question?: string })?.question ?? "")
+    const facts = retrieveContext(question || "summary")
+    return facts || "No analysed documents cover that yet."
   })
   // Clear the Runway (right-hand canvas) — all cards/dashboards/invoices/files.
   useConversationClientTool("clear_canvas", async () => {
