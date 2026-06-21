@@ -127,7 +127,16 @@ export async function testElevenLabs(key: string, agentId: string): Promise<KeyT
     if (res.status === 401) return { ok: false, message: "Key rejected by ElevenLabs (wrong or expired)" }
     if (res.status === 404 || res.status === 422)
       return { ok: false, message: "Agent ID not found on this account" }
-    return { ok: false, message: `ElevenLabs error ${res.status}` }
+    // Surface ElevenLabs' actual reason (e.g. a 400) instead of a bare code.
+    let reason = ""
+    try {
+      const body = (await res.json()) as { detail?: string | { message?: string; status?: string } }
+      const d = body?.detail
+      reason = (typeof d === "string" ? d : d?.message || d?.status) || ""
+    } catch {
+      /* ignore */
+    }
+    return { ok: false, message: `ElevenLabs error ${res.status}${reason ? ` — ${reason}` : ""}` }
   } catch {
     return { ok: false, message: "Couldn't reach ElevenLabs (check internet)" }
   }

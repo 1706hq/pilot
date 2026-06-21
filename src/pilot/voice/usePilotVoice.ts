@@ -44,12 +44,35 @@ function mapCrew(name: string): { agent: AgentId; label: string } {
   return { agent: "PILOT", label: "PILOT" }
 }
 
+/** Pull a human-readable reason out of an ElevenLabs error response. */
+async function elevenLabsError(res: Response): Promise<string> {
+  try {
+    const body = (await res.clone().json()) as {
+      detail?: string | { message?: string; status?: string }
+    }
+    const d = body?.detail
+    const reason = typeof d === "string" ? d : d?.message || d?.status
+    if (reason) return reason
+  } catch {
+    try {
+      const t = (await res.text()).trim()
+      if (t) return t.slice(0, 200)
+    } catch {
+      /* ignore */
+    }
+  }
+  return ""
+}
+
 async function fetchConversationToken(agentId: string, apiKey: string) {
   const res = await fetch(
-    `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${agentId}`,
+    `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${encodeURIComponent(agentId)}`,
     { headers: { "xi-api-key": apiKey } }
   )
-  if (!res.ok) throw new Error(`token request failed: ${res.status}`)
+  if (!res.ok) {
+    const reason = await elevenLabsError(res)
+    throw new Error(`token request failed: ${res.status}${reason ? ` — ${reason}` : ""}`)
+  }
   const data = (await res.json()) as { token: string }
   return data.token
 }
