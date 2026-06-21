@@ -47,3 +47,15 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: --target aarch64-apple-darwin
+
+      # Attach a STABLE-named copy of the DMG so the README download button
+      # (releases/latest/download/PILOT-AppleSilicon.dmg) never 404s when the
+      # version-named file changes each release.
+      - name: Attach stable-named DMG
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DMG=$(find src-tauri/target -name '*_aarch64.dmg' | head -1)
+          echo "found dmg: $DMG"
+          cp "$DMG" PILOT-AppleSilicon.dmg
+          gh release upload "${{ github.ref_name }}" PILOT-AppleSilicon.dmg --repo "${{ github.repository }}" --clobber

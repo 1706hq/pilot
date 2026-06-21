@@ -12,7 +12,7 @@ for a man who runs 25+ portfolio companies instead of one suit.
 
 <br/>
 
-[![Download PILOT for macOS](https://img.shields.io/badge/⬇_Download_PILOT-Apple_Silicon_·_.dmg-0052ff?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/1706hq/pilot/releases/latest/download/pilot_0.1.0_aarch64.dmg)
+[![Download PILOT for macOS](https://img.shields.io/badge/⬇_Download_PILOT-Apple_Silicon_·_.dmg-0052ff?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/1706hq/pilot/releases/latest/download/PILOT-AppleSilicon.dmg)
 
 </div>
 
