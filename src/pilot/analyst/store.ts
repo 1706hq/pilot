@@ -11,8 +11,19 @@
  */
 
 import type { KnowledgeBase, LedgerRecord } from "~/pilot/analyst/types"
+import seedRaw from "~/pilot/analyst/seed.json"
+import { usePilotStore } from "~/pilot/state/store"
 
 const KB_KEY = "pilot.blackbox.v1"
+
+/**
+ * Pre-analysed documents bundled with the app, so PILOT already knows Peter's
+ * latest packs the moment he opens it — no manual upload needed. These live in
+ * memory only (never written to localStorage), which also sidesteps the storage
+ * quota for large multi-hundred-page packs. A user re-uploading the same docId
+ * overrides the seed (see listKnowledgeBases).
+ */
+const SEEDED: KnowledgeBase[] = seedRaw as unknown as KnowledgeBase[]
 
 function readAll(): Record<string, KnowledgeBase> {
   if (typeof window === "undefined") return {}
@@ -28,13 +39,28 @@ export function saveKnowledgeBase(kb: KnowledgeBase) {
   all[kb.docId] = kb
   try {
     window.localStorage.setItem(KB_KEY, JSON.stringify(all))
-  } catch {
-    /* quota — a real fix would move to SQLite */
+  } catch (e) {
+    // Surface the failure instead of silently dropping the analysis. (A future
+    // fix moves the store to SQLite via a Tauri plugin for unlimited size.)
+    // eslint-disable-next-line no-console
+    console.warn("[blackbox] could not persist knowledge base (storage quota?)", e)
+    try {
+      usePilotStore
+        .getState()
+        .setNotice(`Analysed ${kb.company}, but it was too large to save locally.`)
+    } catch {
+      /* store not ready */
+    }
   }
 }
 
 export function listKnowledgeBases(): KnowledgeBase[] {
-  return Object.values(readAll()).sort((a, b) => b.builtAt - a.builtAt)
+  // Merge bundled seeds with anything the user has analysed locally; a local KB
+  // with the same docId wins (a fresh re-upload supersedes the shipped version).
+  const byId = new Map<string, KnowledgeBase>()
+  for (const kb of SEEDED) byId.set(kb.docId, kb)
+  for (const kb of Object.values(readAll())) byId.set(kb.docId, kb)
+  return Array.from(byId.values()).sort((a, b) => b.builtAt - a.builtAt)
 }
 
 export function hasKnowledge(): boolean {
@@ -96,4 +122,35 @@ export function retrieveContext(query: string, maxRecords = 40): string {
     )
   }
   return blocks.join("\n\n")
+}
+
+/**
+ * A compact, always-available overview of everything BLACKBOX has analysed —
+ * each document's headline summary plus a few key totals. Used by the voice path
+ * (which has no query to retrieve against) so a spoken session already knows what
+ * data PILOT is sitting on, with source pages, the moment Peter starts talking.
+ */
+export function knowledgeSummary(maxChars = 3500): string {
+  const kbs = listKnowledgeBases()
+  if (kbs.length === 0) return ""
+  const blocks = kbs.map((kb) => {
+    const totals = kb.ledger
+      .filter((r) => /total/i.test(r.dimension))
+      .slice(0, 5)
+      .map(fmt)
+    const insights = kb.insights
+      .slice(0, 3)
+      .map((i) => `- ${i.headline} [p${i.citations.join(",p")}]`)
+    return (
+      `### ${kb.company} — ${kb.period}\n` +
+      (kb.summary ? `${kb.summary}\n` : "") +
+      (insights.length ? `Top insights:\n${insights.join("\n")}\n` : "") +
+      (totals.length ? `Headline figures:\n${totals.join("\n")}` : "")
+    )
+  })
+  const text =
+    `PILOT has already analysed ${kbs.length} document(s) (the CREW read them via BLACKBOX). ` +
+    `Speak to this data directly; every figure is cited to a source page.\n\n` +
+    blocks.join("\n\n")
+  return text.length > maxChars ? text.slice(0, maxChars) + "…" : text
 }

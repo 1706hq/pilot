@@ -19,6 +19,7 @@ import {
 } from "@elevenlabs/react"
 
 import { paintCanvas, quickLine } from "~/pilot/agents/canvas"
+import { knowledgeSummary } from "~/pilot/analyst/store"
 import { getContextText } from "~/pilot/storage/context"
 import { pickVoiceGreeting } from "~/pilot/voice/greetings"
 import { voiceBridge } from "~/pilot/voice/voiceBridge"
@@ -103,13 +104,21 @@ export function usePilotVoice() {
   // mid-session are picked up without restarting the conversation.
   useConversationClientTool("read_context", async () => {
     const files = usePilotStore.getState().contextFiles
-    if (files.length === 0) return "Peter hasn't uploaded any files yet."
-    const names = files.map((f) => f.name).join(", ")
-    const text = getContextText(8000)
-    if (!text) {
-      return `Peter has uploaded ${files.length} file(s): ${names}. They aren't text I can read (e.g. PDF or image), so I can see the names but not the contents.`
+    // BLACKBOX-analysed documents (incl. the pre-loaded packs) — always available.
+    const kb = knowledgeSummary(6000)
+    const parts: string[] = []
+    if (kb) parts.push(`Analysed documents (grounded, page-cited):\n${kb}`)
+    if (files.length > 0) {
+      const names = files.map((f) => f.name).join(", ")
+      const text = getContextText(6000)
+      parts.push(
+        text
+          ? `Files Peter has uploaded (${files.length}): ${names}\n\n${text}`
+          : `Peter has uploaded ${files.length} file(s): ${names} (not text-readable here).`
+      )
     }
-    return `Files Peter has uploaded (${files.length}): ${names}\n\n${text}`
+    if (parts.length === 0) return "Peter hasn't uploaded any files yet."
+    return parts.join("\n\n")
   })
   // Clear the Runway (right-hand canvas) — all cards/dashboards/invoices/files.
   useConversationClientTool("clear_canvas", async () => {
@@ -161,14 +170,18 @@ export function usePilotVoice() {
         config.elevenLabsKey
       )
       // Inject a fresh, witty opener each session via the {{greeting}} dynamic
-      // variable on the agent's first message.
-      const context = getContextText(4000)
+      // variable, plus what PILOT already knows: BLACKBOX-analysed documents
+      // (the pre-loaded packs) first, then any files Peter has uploaded.
+      const kb = knowledgeSummary(3500)
+      const files = getContextText(3000)
+      const context =
+        [kb, files].filter(Boolean).join("\n\n") || "(no documents analysed yet)"
       controls.startSession({
         conversationToken: token,
         connectionType: "webrtc",
         dynamicVariables: {
           greeting: pickVoiceGreeting(),
-          context: context || "(no files uploaded yet)",
+          context,
         },
       })
     } catch (err) {
