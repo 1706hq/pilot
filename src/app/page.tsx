@@ -294,6 +294,7 @@ function VoiceBanner() {
   const voiceError = usePilotStore((s) => s.voiceError)
   const notice = usePilotStore((s) => s.notice)
   const setVoiceError = usePilotStore((s) => s.setVoiceError)
+  const setSettingsOpen = usePilotStore((s) => s.setSettingsOpen)
   const chatting = usePilotStore((s) => s.conversation.length > 0)
 
   let text: string | null = null
@@ -331,6 +332,18 @@ function VoiceBanner() {
         )}
       >
         <span>{text}</span>
+        {tone === "error" && /configured/i.test(text) ? (
+          <button
+            type="button"
+            onClick={() => {
+              setVoiceError(null)
+              setSettingsOpen(true)
+            }}
+            className="ml-1 rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-semibold text-white transition hover:bg-white/25"
+          >
+            Open settings
+          </button>
+        ) : null}
         {tone === "error" ? (
           <button
             type="button"

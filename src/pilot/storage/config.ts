@@ -79,3 +79,56 @@ export function getModel(): string {
 export function isConfigured(): boolean {
   return Boolean(usePilotStore.getState().config.openRouterKey)
 }
+
+export interface KeyTest {
+  ok: boolean
+  message: string
+}
+
+/**
+ * Live-check an OpenRouter key by hitting the authenticated /key endpoint.
+ * Same host the chat path uses, so a pass means chat will work.
+ */
+export async function testOpenRouterKey(key: string): Promise<KeyTest> {
+  const k = key.trim()
+  if (!k) return { ok: false, message: "No key entered" }
+  if (!k.startsWith("sk-or-"))
+    return { ok: false, message: "Doesn't look like an OpenRouter key (should start with sk-or-)" }
+  try {
+    const res = await fetch("https://openrouter.ai/api/v1/key", {
+      headers: { Authorization: `Bearer ${k}` },
+    })
+    if (res.ok) return { ok: true, message: "Valid — chat is ready" }
+    if (res.status === 401) return { ok: false, message: "Key rejected by OpenRouter (wrong or expired)" }
+    return { ok: false, message: `OpenRouter error ${res.status}` }
+  } catch {
+    return { ok: false, message: "Couldn't reach OpenRouter (check internet)" }
+  }
+}
+
+/**
+ * Live-check the ElevenLabs key + agent id by minting a conversation token —
+ * exactly what voice does on connect, so a pass means voice will work (once mic
+ * is allowed).
+ */
+export async function testElevenLabs(key: string, agentId: string): Promise<KeyTest> {
+  const k = key.trim()
+  const id = agentId.trim()
+  if (!k) return { ok: false, message: "No key entered" }
+  if (!k.startsWith("sk_"))
+    return { ok: false, message: "Doesn't look like an ElevenLabs key (should start with sk_)" }
+  if (!id) return { ok: false, message: "Agent ID is empty" }
+  try {
+    const res = await fetch(
+      `https://api.elevenlabs.io/v1/convai/conversation/token?agent_id=${encodeURIComponent(id)}`,
+      { headers: { "xi-api-key": k } }
+    )
+    if (res.ok) return { ok: true, message: "Valid — voice is ready" }
+    if (res.status === 401) return { ok: false, message: "Key rejected by ElevenLabs (wrong or expired)" }
+    if (res.status === 404 || res.status === 422)
+      return { ok: false, message: "Agent ID not found on this account" }
+    return { ok: false, message: `ElevenLabs error ${res.status}` }
+  } catch {
+    return { ok: false, message: "Couldn't reach ElevenLabs (check internet)" }
+  }
+}

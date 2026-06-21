@@ -12,7 +12,14 @@ import { AnimatePresence, motion } from "motion/react"
 
 import { cn } from "~/lib/utils"
 import { usePilotStore } from "~/pilot/state/store"
-import { DEFAULT_AGENT_ID, DEFAULT_MODEL, saveConfig } from "~/pilot/storage/config"
+import {
+  DEFAULT_AGENT_ID,
+  DEFAULT_MODEL,
+  saveConfig,
+  testElevenLabs,
+  testOpenRouterKey,
+  type KeyTest,
+} from "~/pilot/storage/config"
 
 function Field({
   label,
@@ -78,6 +85,28 @@ function Field({
   )
 }
 
+function ResultRow({ label, result }: { label: string; result?: KeyTest }) {
+  if (!result) return null
+  return (
+    <div className="flex items-start gap-2 text-[12px]">
+      <span
+        className={cn(
+          "mt-0.5 grid size-4 shrink-0 place-items-center rounded-full text-[10px] font-bold",
+          result.ok ? "bg-emerald-400/20 text-emerald-300" : "bg-rose-400/20 text-rose-300"
+        )}
+      >
+        {result.ok ? "✓" : "✕"}
+      </span>
+      <span className="min-w-0">
+        <span className="font-medium text-white/80">{label}: </span>
+        <span className={result.ok ? "text-emerald-300/90" : "text-rose-300/90"}>
+          {result.message}
+        </span>
+      </span>
+    </div>
+  )
+}
+
 export function SettingsModal() {
   const open = usePilotStore((s) => s.settingsOpen)
   const setOpen = usePilotStore((s) => s.setSettingsOpen)
@@ -88,6 +117,8 @@ export function SettingsModal() {
   const [agentId, setAgentId] = useState("")
   const [model, setModel] = useState("")
   const [saved, setSaved] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [results, setResults] = useState<{ or?: KeyTest; el?: KeyTest } | null>(null)
 
   // Re-seed the form from the live config whenever the panel opens.
   useEffect(() => {
@@ -97,8 +128,21 @@ export function SettingsModal() {
       setAgentId(config.elevenLabsAgentId ?? DEFAULT_AGENT_ID)
       setModel(config.model ?? DEFAULT_MODEL)
       setSaved(false)
+      setResults(null)
+      setTesting(false)
     }
   }, [open, config])
+
+  const runTest = async () => {
+    setTesting(true)
+    setResults(null)
+    const [or, el] = await Promise.all([
+      testOpenRouterKey(openRouterKey),
+      testElevenLabs(elevenLabsKey, agentId || DEFAULT_AGENT_ID),
+    ])
+    setResults({ or, el })
+    setTesting(false)
+  }
 
   // Esc to close.
   useEffect(() => {
@@ -202,23 +246,45 @@ export function SettingsModal() {
                 your ElevenLabs profile. PILOT talks to those services directly from
                 this Mac.
               </p>
+
+              {results ? (
+                <div className="flex flex-col gap-1.5 rounded-xl border border-white/10 bg-black/30 px-3.5 py-3">
+                  <ResultRow label="OpenRouter (chat)" result={results.or} />
+                  <ResultRow label="ElevenLabs (voice)" result={results.el} />
+                  {results.or?.ok && results.el?.ok ? (
+                    <p className="mt-0.5 text-[11px] text-emerald-300/80">
+                      Both good — hit Save and you&apos;re away.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
 
-            <div className="flex items-center justify-end gap-2 border-t border-white/8 px-6 py-4">
+            <div className="flex items-center justify-between gap-2 border-t border-white/8 px-6 py-4">
               <button
                 type="button"
-                onClick={() => setOpen(false)}
-                className="rounded-xl px-4 py-2 text-[13px] font-medium text-white/60 transition hover:bg-white/10 hover:text-white"
+                onClick={runTest}
+                disabled={testing}
+                className="rounded-xl border border-white/15 px-4 py-2 text-[13px] font-medium text-white/80 transition hover:bg-white/10 disabled:opacity-50"
               >
-                Cancel
+                {testing ? "Testing…" : "Test keys"}
               </button>
-              <button
-                type="button"
-                onClick={onSave}
-                className="rounded-xl bg-sky-500 px-4 py-2 text-[13px] font-semibold text-white shadow-[0_4px_16px_rgba(56,151,255,0.4)] transition hover:bg-sky-400 active:scale-95"
-              >
-                {saved ? "Saved ✓" : "Save"}
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="rounded-xl px-4 py-2 text-[13px] font-medium text-white/60 transition hover:bg-white/10 hover:text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={onSave}
+                  className="rounded-xl bg-sky-500 px-4 py-2 text-[13px] font-semibold text-white shadow-[0_4px_16px_rgba(56,151,255,0.4)] transition hover:bg-sky-400 active:scale-95"
+                >
+                  {saved ? "Saved ✓" : "Save"}
+                </button>
+              </div>
             </div>
           </motion.div>
         </motion.div>
