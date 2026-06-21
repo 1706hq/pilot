@@ -10,6 +10,7 @@
  * treating any item as fact. The UI flags it "Preview" so that's honest.
  */
 
+import { listKnowledgeBases } from "~/pilot/analyst/store"
 import type { AgentId } from "~/pilot/types"
 
 export type BriefUrgency = "now" | "today" | "watch"
@@ -62,3 +63,54 @@ export const TODAYS_BRIEF: BriefItem[] = [
     urgency: "watch",
   },
 ]
+
+const URGENCY_BY_KIND: Record<string, BriefUrgency> = {
+  risk: "now",
+  opportunity: "today",
+  movement: "watch",
+}
+const KIND_RANK: Record<string, number> = { risk: 0, opportunity: 1, movement: 2 }
+
+/** Route an insight to the CREW member whose domain it sits in. */
+function agentForText(text: string): AgentId {
+  const t = text.toLowerCase()
+  if (/margin|cash|p&l|profit|budget|revenue|sales|invoice|ebitda|forecast|£|risk/.test(t))
+    return "STERLING"
+  if (/footfall|stock|store|delivery|kpi|supply|operation|trustpilot|customer|web|ecom|transaction|fulfil/.test(t))
+    return "MARSHALL"
+  return "PILOT"
+}
+
+/**
+ * Build the brief from what BLACKBOX has actually found — the highest-signal
+ * insights across every analysed document, risks first, each carrying its source
+ * pages. Falls back to the seeded preview only when nothing's been analysed yet.
+ */
+export function buildBrief(): { items: BriefItem[]; live: boolean } {
+  const kbs = listKnowledgeBases()
+  const ranked: { item: BriefItem; rank: number }[] = []
+  kbs.forEach((kb) => {
+    ;(kb.insights ?? []).forEach((ins, i) => {
+      const headline = (ins.headline ?? "").trim()
+      const rawDetail = (ins.detail ?? "").trim()
+      if (!headline && !rawDetail) return
+      const cite = ins.citations?.length ? ` (p${ins.citations.join(", p")})` : ""
+      const detail =
+        rawDetail.length > 168 ? rawDetail.slice(0, 165) + "…" : rawDetail
+      ranked.push({
+        item: {
+          id: `${kb.docId}-${i}`,
+          agent: agentForText(`${headline} ${rawDetail}`),
+          title: headline || rawDetail.slice(0, 60),
+          detail: (detail || headline) + cite,
+          when: ins.kind === "risk" ? "Flagged" : undefined,
+          urgency: URGENCY_BY_KIND[ins.kind] ?? "watch",
+        },
+        rank: (KIND_RANK[ins.kind] ?? 3) * 100 + i,
+      })
+    })
+  })
+  if (ranked.length === 0) return { items: TODAYS_BRIEF, live: false }
+  ranked.sort((a, b) => a.rank - b.rank)
+  return { items: ranked.slice(0, 5).map((r) => r.item), live: true }
+}

@@ -9,7 +9,9 @@
  * honest until wired to real signals.
  */
 
-import { TODAYS_BRIEF, type BriefItem, type BriefUrgency } from "~/pilot/brief/brief"
+import { useEffect, useState } from "react"
+
+import { TODAYS_BRIEF, buildBrief, type BriefItem, type BriefUrgency } from "~/pilot/brief/brief"
 import { AGENTS } from "~/pilot/agents/agents"
 import { cn } from "~/lib/utils"
 
@@ -53,6 +55,18 @@ function BriefRow({ item }: { item: BriefItem }) {
 }
 
 export function TodaysBrief({ className }: { className?: string }) {
+  // Compute on the client (reads BLACKBOX from localStorage/seed) to avoid an
+  // SSR/hydration mismatch — start from the seeded preview, then fill from the
+  // CREW's actual findings on mount.
+  const [items, setItems] = useState<BriefItem[]>(TODAYS_BRIEF)
+  const [live, setLive] = useState(false)
+
+  useEffect(() => {
+    const { items, live } = buildBrief()
+    setItems(items)
+    setLive(live)
+  }, [])
+
   return (
     <div className={cn("flex flex-col", className)}>
       <div className="mb-3 flex items-center justify-center gap-2">
@@ -60,14 +74,23 @@ export function TodaysBrief({ className }: { className?: string }) {
           Today&apos;s Brief
         </span>
         <span
-          className="rounded-full border border-white/10 bg-white/5 px-2 py-px text-[9px] font-medium uppercase tracking-[0.14em] text-white/35"
-          title="Seeded preview — not yet wired to live data"
+          className={cn(
+            "rounded-full border px-2 py-px text-[9px] font-medium uppercase tracking-[0.14em]",
+            live
+              ? "border-emerald-400/25 bg-emerald-400/10 text-emerald-300/80"
+              : "border-white/10 bg-white/5 text-white/35"
+          )}
+          title={
+            live
+              ? "Surfaced by BLACKBOX from Peter's analysed documents"
+              : "Seeded preview — no analysed documents yet"
+          }
         >
-          Preview
+          {live ? "Live · BLACKBOX" : "Preview"}
         </span>
       </div>
       <div className="model-picker-scroll flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overflow-x-hidden px-1 pb-2">
-        {TODAYS_BRIEF.map((item) => (
+        {items.map((item) => (
           <BriefRow key={item.id} item={item} />
         ))}
       </div>

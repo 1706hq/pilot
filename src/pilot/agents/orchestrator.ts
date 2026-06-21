@@ -9,6 +9,7 @@
 
 import { paintCanvas } from "~/pilot/agents/canvas"
 import { buildSystemPrompt } from "~/pilot/agents/personas"
+import { webSearch, formatSources } from "~/pilot/agents/web"
 import { retrieveContext } from "~/pilot/analyst/store"
 import { getContextText } from "~/pilot/storage/context"
 import { getModel } from "~/pilot/storage/config"
@@ -33,6 +34,25 @@ const TOOLS = [
             type: "string",
             description:
               "What to create, with any details — only what Peter asked for. E.g. 'invoice the client he named for the amount he gave, net 30 days', 'dashboard of American Golf's KPIs from the uploaded data', or 'one-page brief on the Jessops turnaround'. Do not invent clients, amounts or figures Peter didn't provide.",
+          },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "web_search",
+      description:
+        "Search the LIVE web for current, public information you don't already have — stock/share prices, crypto prices (Bitcoin etc.), market moves, news, sport results and fixtures (e.g. the World Cup), weather, exchange rates, or facts about any public company or person. Returns up-to-date results with sources. Use this whenever Peter asks about anything live, current, or in the public domain — you CAN access the web through this tool, so never tell him you can't. (This is for public data only — Peter's own company figures come from his verified BLACKBOX data, not the web.) After getting results you can also call show_on_canvas to chart or write them up.",
+      parameters: {
+        type: "object",
+        required: ["query"],
+        properties: {
+          query: {
+            type: "string",
+            description:
+              "A focused search query, e.g. 'current Bitcoin price GBP', 'FTSE 100 today', 'World Cup 2026 latest results'.",
           },
         },
       },
@@ -148,6 +168,12 @@ export async function sendMessage(text: string, agentOverride?: AgentId) {
           if (tc.function.name === "show_on_canvas") {
             const args = JSON.parse(tc.function.arguments || "{}")
             result = await paintCanvas(String(args.intent ?? ""))
+          } else if (tc.function.name === "web_search") {
+            const args = JSON.parse(tc.function.arguments || "{}")
+            const web = await webSearch(String(args.query ?? ""))
+            result = web
+              ? web.text + formatSources(web.sources)
+              : "Web search is unavailable right now (check the OpenRouter key)."
           } else if (tc.function.name === "clear_canvas") {
             usePilotStore.getState().clearWidgets()
             result = "Cleared the Runway."

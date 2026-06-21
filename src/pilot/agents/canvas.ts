@@ -7,6 +7,8 @@
  * tool and the text path's render_ui tool.
  */
 
+import { retrieveContext } from "~/pilot/analyst/store"
+import { webSearch } from "~/pilot/agents/web"
 import { getModel } from "~/pilot/storage/config"
 import { getContextText } from "~/pilot/storage/context"
 import { usePilotStore } from "~/pilot/state/store"
@@ -23,20 +25,33 @@ function today(): string {
   })
 }
 
-function schemaPrompt(contextText: string): string {
-  const grounding = contextText
-    ? `\n\n## Peter's uploaded data — your ONLY source for real figures
-${contextText}
+function schemaPrompt(contextText: string, kbText: string): string {
+  const hasReal = Boolean(kbText || contextText)
+  const sources = [
+    kbText
+      ? `## VERIFIED DATA (BLACKBOX) — authoritative, page-cited figures from Peter's analysed documents
+${kbText}`
+      : "",
+    contextText
+      ? `## Peter's uploaded text\n${contextText}`
+      : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n")
+
+  const grounding = hasReal
+    ? `\n\n${sources}
 
 GROUNDING RULES (critical — Peter checks these against reality):
-- For any company's numbers, KPIs, financials or metrics, use ONLY figures that appear in the uploaded data above. Do NOT round, adjust, or "improve" them.
-- If the intent asks for a company's numbers and that company is NOT in the uploaded data, do NOT invent figures. Return a "document" that says you don't have that data uploaded yet and names exactly what Peter should upload.
-- When you build a widget from the uploaded data, set a top-level "source" field to the exact file name(s) you drew from, e.g. "source":"American Golf Q1.xlsx".`
-    : `\n\n## No data uploaded
-Peter has not uploaded any files. You have NO real figures for his companies.
+- For any of PETER'S COMPANIES' numbers, KPIs, financials or metrics, use ONLY figures that appear in the data above. Do NOT round, adjust, or "improve" them. Prefer the VERIFIED (BLACKBOX) figures.
+- If the intent asks for one of his companies' numbers and that company is NOT in the data above, do NOT invent figures — return a "document" naming exactly what Peter should upload.
+- You MAY freely use any figures the intent itself supplies (e.g. an invoice amount, or live market/sport/public data the user already fetched and pasted into the intent) — chart or tabulate those as asked.
+- When you build a widget from his analysed/uploaded data, set a top-level "source" field naming it, e.g. "source":"FY27 Wk19 AGT Trade Pack.pdf".`
+    : `\n\n## No company data analysed yet
+Peter has no analysed documents. You have NO real figures for his companies.
 GROUNDING RULES (critical):
-- Do NOT invent financial figures, KPIs or metrics for any company. If the intent asks to show a company's numbers/performance/KPIs, return a "document" explaining that no data has been uploaded for it and naming exactly what Peter should upload (e.g. "Upload American Golf's latest management accounts or KPI export and I'll build this from the real numbers").
-- You MAY still use numbers the user states explicitly in the intent (e.g. an invoice amount they give you).`
+- Do NOT invent financial figures, KPIs or metrics for any of his companies. If the intent asks for a company's numbers, return a "document" naming exactly what Peter should upload.
+- You MAY still use numbers the intent supplies directly (an invoice amount, or live market/sport/public data already fetched into the intent) — chart or tabulate those as asked.`
 
   return `You generate UI for PILOT, the command centre for Peter Jones CBE (portfolio incl. American Golf, Jessops, Levi Roots, Gener8). Given an intent, return ONLY ONE JSON object — no prose, no markdown fences. Pick the BEST type for the intent:
 
@@ -143,7 +158,10 @@ export async function generateCanvas(
   const { config } = usePilotStore.getState()
   if (!config.openRouterKey) return null
   try {
-    const contextText = getContextText(8000)
+    // Ground the canvas in BLACKBOX's verified, page-cited figures (so charts and
+    // dashboards of the analysed packs work), plus any raw uploaded text.
+    const kbText = retrieveContext(intent, 30)
+    const contextText = getContextText(6000)
     const res = await fetch(OPENROUTER_URL, {
       method: "POST",
       headers: {
@@ -155,7 +173,7 @@ export async function generateCanvas(
       body: JSON.stringify({
         model: getModel(),
         messages: [
-          { role: "system", content: schemaPrompt(contextText) },
+          { role: "system", content: schemaPrompt(contextText, kbText) },
           { role: "user", content: `Intent: ${intent}` },
         ],
         response_format: { type: "json_object" },
@@ -180,37 +198,13 @@ export async function generateCanvas(
   }
 }
 
+/**
+ * The voice path's `live_search` tool — now backed by REAL web access. Pulls
+ * current public data (prices, news, sport, weather) and returns one spoken line.
+ */
 export async function quickLine(query: string): Promise<string> {
-  const { config } = usePilotStore.getState()
-  if (!config.openRouterKey) return "I can't reach my sources right now."
-  try {
-    const res = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${config.openRouterKey}`,
-        "HTTP-Referer": "https://pilot.local",
-        "X-Title": "PILOT",
-      },
-      body: JSON.stringify({
-        model: getModel(),
-        messages: [
-          {
-            role: "system",
-            content:
-              "Answer in ONE concise spoken sentence for Peter Jones. British English. No preamble.",
-          },
-          { role: "user", content: query },
-        ],
-        temperature: 0.4,
-      }),
-    })
-    if (!res.ok) return "I couldn't pull that just now."
-    const data = (await res.json()) as OpenAIResp
-    return data.choices?.[0]?.message?.content?.trim() || "Nothing notable to report."
-  } catch {
-    return "I couldn't pull that just now."
-  }
+  const web = await webSearch(query, { spoken: true })
+  return web?.text || "I couldn't pull that from the web just now."
 }
 
 /**
