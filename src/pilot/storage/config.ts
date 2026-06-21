@@ -34,8 +34,11 @@ const ENV: Partial<PilotConfig> = {
  * misses the invisible ones, which silently breaks an otherwise-correct key.
  */
 export function sanitizeKey(v: string): string {
-  const junk = "[\s\u200B-\u200D\uFEFF\u00A0\"'`\u2018\u2019\u201C\u201D]+"
-  return v.replace(new RegExp("^" + junk), "").replace(new RegExp(junk + "$"), "")
+  // Regex LITERALS so \s is whitespace (not the letter "s"). Strips whitespace,
+  // zero-width chars, BOM, nbsp, and surrounding quotes from a pasted key.
+  return v
+    .replace(/^[\s​-‍﻿ "'`‘’“”]+/, "")
+    .replace(/[\s​-‍﻿ "'`‘’“”]+$/, "")
 }
 
 /** Drop undefined/empty values so they don't clobber real ones in a merge. */
