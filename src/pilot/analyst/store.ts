@@ -67,6 +67,11 @@ export function hasKnowledge(): boolean {
   return listKnowledgeBases().length > 0
 }
 
+/** Render a page-citation tag like " (p11, p14)" — safe for missing/empty arrays. */
+function cites(c: number[] | undefined): string {
+  return c && c.length ? ` (p${c.join(", p")})` : ""
+}
+
 function fmt(r: LedgerRecord): string {
   const p: string[] = [`${r.value}${r.unit ?? ""}`]
   if (r.bud !== undefined) p.push(`bud ${r.bud}`)
@@ -101,18 +106,18 @@ export function retrieveContext(query: string, maxRecords = 40): string {
       ? ranked.filter((x) => x.s > 0).slice(0, maxRecords)
       : ranked.filter((x) => /total/i.test(x.r.dimension)).slice(0, maxRecords)
 
-    const insights = kb.insights
-      .map((i) => ({ i, s: score(`${i.headline} ${i.detail}`) }))
+    const insights = (kb.insights ?? [])
+      .map((i) => ({ i, s: score(`${i.headline ?? ""} ${i.detail ?? ""}`) }))
       .sort((a, b) => b.s - a.s)
       .slice(0, 6)
-      .map((x) => `- ${x.i.headline} — ${x.i.detail} [p${x.i.citations.join(",p")}]`)
+      .map((x) => `- ${x.i.headline ?? ""} — ${x.i.detail ?? ""}${cites(x.i.citations)}`)
 
-    const qa = kb.qa
-      .map((e) => ({ e, s: score(e.question) }))
+    const qa = (kb.qa ?? [])
+      .map((e) => ({ e, s: score(e.question ?? "") }))
       .filter((x) => x.s > 0)
       .sort((a, b) => b.s - a.s)
       .slice(0, 4)
-      .map((x) => `Q: ${x.e.question}\nA: ${x.e.answer} [p${x.e.citations.join(",p")}]`)
+      .map((x) => `Q: ${x.e.question ?? ""}\nA: ${x.e.answer ?? ""}${cites(x.e.citations)}`)
 
     blocks.push(
       `### ${kb.company} — ${kb.period} (from ${kb.docId})\n` +
@@ -134,13 +139,13 @@ export function knowledgeSummary(maxChars = 3500): string {
   const kbs = listKnowledgeBases()
   if (kbs.length === 0) return ""
   const blocks = kbs.map((kb) => {
-    const totals = kb.ledger
-      .filter((r) => /total/i.test(r.dimension))
+    const totals = (kb.ledger ?? [])
+      .filter((r) => /total/i.test(r.dimension ?? ""))
       .slice(0, 5)
       .map(fmt)
-    const insights = kb.insights
+    const insights = (kb.insights ?? [])
       .slice(0, 3)
-      .map((i) => `- ${i.headline} [p${i.citations.join(",p")}]`)
+      .map((i) => `- ${i.headline ?? i.detail ?? ""}${cites(i.citations)}`)
     return (
       `### ${kb.company} — ${kb.period}\n` +
       (kb.summary ? `${kb.summary}\n` : "") +

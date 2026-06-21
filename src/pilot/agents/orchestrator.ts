@@ -129,8 +129,19 @@ export async function sendMessage(text: string, agentOverride?: AgentId) {
   inFlight?.abort()
   inFlight = new AbortController()
 
+  // Loop-guard state: reasoning models (e.g. Gemini) will happily re-call a tool
+  // forever instead of answering. We dedupe web_search, cap tool rounds, and
+  // never leave an empty bubble.
+  let lastWebResult = ""
+  let lastCanvasResult = ""
+  let searched = false
+  let toolRounds = 0
+
   try {
     for (let turn = 0; turn < MAX_TURNS; turn++) {
+      // After two rounds of tools, force a final TEXT answer so the model can't
+      // keep calling tools in a loop.
+      const toolChoice = toolRounds >= 2 ? "none" : "auto"
       const res = await fetch(OPENROUTER_URL, {
         method: "POST",
         signal: inFlight.signal,
@@ -144,7 +155,7 @@ export async function sendMessage(text: string, agentOverride?: AgentId) {
           model: getModel(),
           messages,
           tools: TOOLS,
-          tool_choice: "auto",
+          tool_choice: toolChoice,
           stream: true,
           temperature: 0.6,
         }),
@@ -160,6 +171,7 @@ export async function sendMessage(text: string, agentOverride?: AgentId) {
 
       if (toolCalls.length === 0) break // final text already streamed in
 
+      toolRounds += 1
       // Record the assistant's tool-call turn, run the tools, feed results back.
       messages.push({ role: "assistant", content: content || null, tool_calls: toolCalls })
       for (const tc of toolCalls) {
@@ -168,15 +180,24 @@ export async function sendMessage(text: string, agentOverride?: AgentId) {
           if (tc.function.name === "show_on_canvas") {
             const args = JSON.parse(tc.function.arguments || "{}")
             result = await paintCanvas(String(args.intent ?? ""))
+            lastCanvasResult = result
           } else if (tc.function.name === "web_search") {
             const args = JSON.parse(tc.function.arguments || "{}")
-            const web = await webSearch(String(args.query ?? ""))
-            result = web
-              ? web.text + formatSources(web.sources)
-              : "Web search is unavailable right now (check the OpenRouter key)."
+            if (searched && lastWebResult) {
+              // Already fetched once — don't search again, push it to answer.
+              result = `${lastWebResult}\n\n(You already have these live results — do NOT search again. Answer Peter now in a sentence, or call show_on_canvas to chart them.)`
+            } else {
+              const web = await webSearch(String(args.query ?? ""))
+              lastWebResult = web
+                ? web.text + formatSources(web.sources)
+                : "Web search is unavailable right now (check the OpenRouter key)."
+              result = lastWebResult
+              searched = true
+            }
           } else if (tc.function.name === "clear_canvas") {
             usePilotStore.getState().clearWidgets()
             result = "Cleared the Runway."
+            lastCanvasResult = result
           }
         } catch (e) {
           result = `Tool error: ${e instanceof Error ? e.message : String(e)}`
@@ -186,6 +207,15 @@ export async function sendMessage(text: string, agentOverride?: AgentId) {
       // Loop: next completion streams PILOT's spoken confirmation into the bubble.
     }
 
+    // Never leave an empty bubble: if tools ran but the model produced no text,
+    // fall back to the most useful tool result we have.
+    const finalMsg = usePilotStore
+      .getState()
+      .conversation.find((m) => m.id === assistantId)
+    if (!finalMsg?.content?.trim()) {
+      const fallback = lastWebResult || lastCanvasResult || "Done."
+      usePilotStore.getState().updateMessage(assistantId, { content: fallback })
+    }
     usePilotStore.getState().updateMessage(assistantId, { streaming: false })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
