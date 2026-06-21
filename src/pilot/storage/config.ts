@@ -27,11 +27,22 @@ const ENV: Partial<PilotConfig> = {
   model: process.env.NEXT_PUBLIC_OPENROUTER_MODEL,
 }
 
+/**
+ * Strip the junk that copy-paste from email/chat tacks onto a key: normal
+ * whitespace, zero-width chars (U+200B–200D), BOM (U+FEFF), non-breaking space
+ * (U+00A0), and surrounding straight/smart quotes or backticks. `trim()` alone
+ * misses the invisible ones, which silently breaks an otherwise-correct key.
+ */
+export function sanitizeKey(v: string): string {
+  const junk = "[\s\u200B-\u200D\uFEFF\u00A0\"'`\u2018\u2019\u201C\u201D]+"
+  return v.replace(new RegExp("^" + junk), "").replace(new RegExp(junk + "$"), "")
+}
+
 /** Drop undefined/empty values so they don't clobber real ones in a merge. */
 function clean(obj: Partial<PilotConfig>): Partial<PilotConfig> {
   const out: Record<string, string> = {}
   for (const [k, v] of Object.entries(obj)) {
-    if (typeof v === "string" && v.trim()) out[k] = v.trim()
+    if (typeof v === "string" && sanitizeKey(v)) out[k] = sanitizeKey(v)
   }
   return out as Partial<PilotConfig>
 }
@@ -90,10 +101,13 @@ export interface KeyTest {
  * Same host the chat path uses, so a pass means chat will work.
  */
 export async function testOpenRouterKey(key: string): Promise<KeyTest> {
-  const k = key.trim()
+  const k = sanitizeKey(key)
   if (!k) return { ok: false, message: "No key entered" }
   if (!k.startsWith("sk-or-"))
-    return { ok: false, message: "Doesn't look like an OpenRouter key (should start with sk-or-)" }
+    return {
+      ok: false,
+      message: `Doesn't look like an OpenRouter key (should start with sk-or-; it starts with ${JSON.stringify(key.slice(0, 8))})`,
+    }
   try {
     const res = await fetch("https://openrouter.ai/api/v1/key", {
       headers: { Authorization: `Bearer ${k}` },
@@ -112,11 +126,14 @@ export async function testOpenRouterKey(key: string): Promise<KeyTest> {
  * is allowed).
  */
 export async function testElevenLabs(key: string, agentId: string): Promise<KeyTest> {
-  const k = key.trim()
-  const id = agentId.trim()
+  const k = sanitizeKey(key)
+  const id = sanitizeKey(agentId)
   if (!k) return { ok: false, message: "No key entered" }
   if (!k.startsWith("sk_"))
-    return { ok: false, message: "Doesn't look like an ElevenLabs key (should start with sk_)" }
+    return {
+      ok: false,
+      message: `Doesn't look like an ElevenLabs key (should start with sk_; it starts with ${JSON.stringify(key.slice(0, 8))})`,
+    }
   if (!id) return { ok: false, message: "Agent ID is empty" }
   try {
     const res = await fetch(

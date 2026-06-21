@@ -53,6 +53,8 @@ function Field({
           placeholder={placeholder}
           spellCheck={false}
           autoComplete="off"
+          autoCapitalize="off"
+          autoCorrect="off"
           className={cn(
             "w-full rounded-xl border border-white/12 bg-black/40 px-3 py-2.5 text-[13px] text-white placeholder:text-white/25 outline-none transition focus:border-sky-400/50 focus:bg-black/60",
             secret ? "pr-11" : "",
