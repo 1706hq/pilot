@@ -39,8 +39,8 @@ interface StoredFile {
 /** Result of trying to ingest one file, returned to the UI for confirmation. */
 export interface AddedFile {
   name: string
-  /** "image" = rejected; "error" = extraction failed; otherwise the read status. */
-  outcome: ContextFileStatus | "image" | "error"
+  /** "image" = rejected; "error" = failed; "analysing" = queued for BLACKBOX; otherwise the read status. */
+  outcome: ContextFileStatus | "image" | "error" | "analysing"
 }
 
 function readAll(): StoredFile[] {
@@ -102,9 +102,15 @@ const IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg|bmp|heic|heif|avif|tiff?|ico)$/i
 const PDF_EXT = /\.pdf$/i
 const DOCX_EXT = /\.docx$/i
 const SHEET_EXT = /\.(xlsx|xls|xlsm)$/i
+/** Tabular data that should be ANALYSED (BLACKBOX), not dumped as raw text. */
+const SPREADSHEET_EXT = /\.(xlsx|xls|xlsm|csv|tsv)$/i
 
 function isImage(file: File): boolean {
   return file.type.startsWith("image/") || IMAGE_EXT.test(file.name)
+}
+
+function isSpreadsheet(file: File): boolean {
+  return SPREADSHEET_EXT.test(file.name) || file.type.includes("spreadsheet")
 }
 
 function isTextLike(file: File): boolean {
@@ -177,6 +183,7 @@ export async function addContextFiles(
   const byName = new Map(existing.map((f) => [f.name, f]))
   const files: AddedFile[] = []
   const pdfQueue: File[] = []
+  const sheetQueue: File[] = []
   let added = 0
   let skippedImages = 0
 
@@ -197,7 +204,14 @@ export async function addContextFiles(
       // real source of truth at query time.
       pdfQueue.push(file)
       status = "extracted"
-      outcome = "extracted"
+      outcome = "analysing"
+    } else if (isSpreadsheet(file)) {
+      // Spreadsheets ALSO go through BLACKBOX (parse each sheet, transcribe,
+      // audit, analyse) so the numbers are grounded and accurate — not a raw,
+      // truncated CSV dumped into the prompt. Name-only here; the KB is truth.
+      sheetQueue.push(file)
+      status = "extracted"
+      outcome = "analysing"
     } else if (isTextLike(file)) {
       try {
         text = (await file.text()).slice(0, PER_FILE_CHARS)
@@ -255,6 +269,17 @@ export async function addContextFiles(
     )
   }
 
+  // Spreadsheets run the same pipeline via a sheet-aware path.
+  for (const sheet of sheetQueue) {
+    void import("~/pilot/analyst/run").then(({ ingestSpreadsheet }) =>
+      ingestSpreadsheet(sheet, {
+        docId: sheet.name,
+        company: deriveCompany(sheet.name),
+        period: "",
+      })
+    )
+  }
+
   // If a voice session is live, push the new context straight into it so PILOT
   // knows immediately — no need to wait for him to call read_context.
   if (added > 0 && voiceBridge.active) {
@@ -276,6 +301,7 @@ export function describeUpload(r: {
   skippedImages: number
   files: AddedFile[]
 }): string {
+  const analysing = r.files.filter((f) => f.outcome === "analysing")
   const readable = r.files.filter(
     (f) => f.outcome === "text" || f.outcome === "extracted"
   )
@@ -283,9 +309,14 @@ export function describeUpload(r: {
     (f) => f.outcome === "binary" || f.outcome === "error"
   )
   const parts: string[] = []
+  if (analysing.length) {
+    parts.push(
+      `Uploaded ${analysing.map((f) => f.name).join(", ")}. Reading and checking the numbers now (about a minute). I'll confirm the moment ${analysing.length > 1 ? "they're" : "it's"} ready.`
+    )
+  }
   if (readable.length) {
     parts.push(
-      `Added ${readable.map((f) => f.name).join(", ")} — PILOT can read ${readable.length > 1 ? "them" : "it"}`
+      `Added ${readable.map((f) => f.name).join(", ")}. PILOT can read ${readable.length > 1 ? "them" : "it"} now.`
     )
   }
   if (nameOnly.length) {

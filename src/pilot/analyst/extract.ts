@@ -101,3 +101,78 @@ export async function extractPage(
     return null
   }
 }
+
+export const SHEET_EXTRACT_PROMPT = `You are transcribing ONE sheet of a financial spreadsheet for an audit trail. Output ONLY a JSON object, no prose, no markdown fences.
+
+ABSOLUTE RULES:
+- TRANSCRIBE, do not interpret, summarise, or compute anything.
+- A negative is anything in parentheses, with a leading minus, or shown in red: "(247)" -> -247.
+- Record the unit of every numeric cell: "£k" ONLY for monetary amounts in thousands, "%" for a percentage, otherwise null (keep the full number exactly, e.g. 455618). Counts (subscribers, customers, transactions, units) and per-unit money (ARPU, ASP, a single price) are NOT "£k" — use null and the actual number.
+- Preserve the exact column meaning (Actual / Budget / Forecast / Variance / vs Bud / LFL / YoY etc.). Use the row label as the metric and the column header as the dimension.
+- One sheet may hold several tables stacked vertically. Capture each as its own table.
+- If a value is unclear, set it to "unreadable" — NEVER invent it.
+- Capture the period/grain if the sheet states it (e.g. "Week 19", "MTD", "Month", "YTD").
+
+Return exactly this shape:
+{"sourcePage": <int>, "pageType": "table", "grain": <string|null>, "pageTitle": <sheet name>,
+ "tables": [{"title": <string>, "columns": [<string>], "rows": [{"label": <string>, "cells": [{"column": <string>, "value": <number|"unreadable">, "unit": "£k"|"%"|null}]}]}],
+ "narrative": [], "charts": [], "unreadable": [<string>]}`
+
+/**
+ * Transcribe one spreadsheet sheet (passed as CSV text) into the SAME structured
+ * page shape the PDF path produces, so it flows through reconcile / consolidate /
+ * analyse identically. Sheet index is the citation (sourcePage); sheet name is
+ * the title. Text in, no vision needed.
+ */
+export async function extractSheet(
+  csv: string,
+  sheetIndex: number,
+  sheetName: string,
+  model: string = VISION_MODEL
+): Promise<ExtractedPage | null> {
+  const { config } = usePilotStore.getState()
+  if (!config.openRouterKey) return null
+  try {
+    const res = await fetch(OPENROUTER_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.openRouterKey}`,
+        "HTTP-Referer": "https://pilot.local",
+        "X-Title": "PILOT",
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "user",
+            content: `${SHEET_EXTRACT_PROMPT}\n\nSheet name: "${sheetName}". Sheet number: ${sheetIndex}.\n\nSHEET DATA (CSV):\n${csv.slice(0, 24000)}`,
+          },
+        ],
+      }),
+    })
+    if (!res.ok) return null
+    const data = (await res.json()) as OpenAIResp
+    const content = data.choices?.[0]?.message?.content
+    if (!content) return null
+    const obj = parseJson(content) as ExtractedPage
+    // Deterministic unit cleanup: the model tends to inherit a "£k" column header
+    // onto rows that aren't money (counts, per-unit values). Strip £k from those
+    // — value untouched, only the unit label corrected.
+    const NOT_MONEY = /\b(subscribers?|customers?|members?|transactions?|trx|units?|visits?|sessions?|users?|arpu|asp|count|headcount)\b/i
+    for (const t of obj.tables ?? []) {
+      for (const row of t.rows ?? []) {
+        if (NOT_MONEY.test(row.label ?? "")) {
+          for (const cell of row.cells ?? []) {
+            if (cell.unit === "£k") cell.unit = null
+          }
+        }
+      }
+    }
+    return { ...obj, sourcePage: sheetIndex, pageTitle: obj.pageTitle || sheetName }
+  } catch {
+    return null
+  }
+}
