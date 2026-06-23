@@ -16,6 +16,7 @@ import {
   clearContext,
   describeUpload,
   removeContextFile,
+  SUPPORTED_HINT,
 } from "~/pilot/storage/context"
 import { usePilotStore } from "~/pilot/state/store"
 import type { ContextFileStatus, Task } from "~/pilot/types"
@@ -303,8 +304,8 @@ function AddContextButton() {
             </div>
             <div className="truncate text-[11px] text-white/40">
               {count > 0
-                ? `${count} file${count > 1 ? "s" : ""} in context — click to add more`
-                : "PDF, Excel, Word or text — PILOT reads them"}
+                ? `${count} loaded · ${SUPPORTED_HINT}`
+                : SUPPORTED_HINT}
             </div>
           </div>
         ) : null}

@@ -24,6 +24,11 @@ const KEY = "pilot.context.v1"
 /** Per-file text cap and total budget fed to the model, to stay within limits. */
 const PER_FILE_CHARS = 60_000
 const PROMPT_BUDGET = 16_000
+/** Upload ceiling. Reports well under this; bigger gets a clear, friendly reject. */
+export const MAX_FILE_BYTES = 25 * 1024 * 1024
+export const MAX_FILE_LABEL = "25MB"
+/** Human-readable list of what PILOT can fully analyse, for the upload hint. */
+export const SUPPORTED_HINT = `PDF, Excel or Word, up to ${MAX_FILE_LABEL}`
 
 interface StoredFile {
   name: string
@@ -39,8 +44,8 @@ interface StoredFile {
 /** Result of trying to ingest one file, returned to the UI for confirmation. */
 export interface AddedFile {
   name: string
-  /** "image" = rejected; "error" = failed; "analysing" = queued for BLACKBOX; otherwise the read status. */
-  outcome: ContextFileStatus | "image" | "error" | "analysing"
+  /** "image"/"toolarge" = rejected; "error" = failed; "analysing" = queued for BLACKBOX; otherwise the read status. */
+  outcome: ContextFileStatus | "image" | "error" | "analysing" | "toolarge"
 }
 
 function readAll(): StoredFile[] {
@@ -184,10 +189,15 @@ export async function addContextFiles(
   const files: AddedFile[] = []
   const pdfQueue: File[] = []
   const sheetQueue: File[] = []
+  const docQueue: File[] = []
   let added = 0
   let skippedImages = 0
 
   for (const file of incoming) {
+    if (file.size > MAX_FILE_BYTES) {
+      files.push({ name: file.name, outcome: "toolarge" })
+      continue
+    }
     if (isImage(file)) {
       skippedImages += 1
       files.push({ name: file.name, outcome: "image" })
@@ -210,6 +220,12 @@ export async function addContextFiles(
       // audit, analyse) so the numbers are grounded and accurate — not a raw,
       // truncated CSV dumped into the prompt. Name-only here; the KB is truth.
       sheetQueue.push(file)
+      status = "extracted"
+      outcome = "analysing"
+    } else if (DOCX_EXT.test(file.name)) {
+      // Word documents go through BLACKBOX too (text + tables, chunked, analysed)
+      // so a board pack or brief is grounded, not a raw text dump.
+      docQueue.push(file)
       status = "extracted"
       outcome = "analysing"
     } else if (isTextLike(file)) {
@@ -280,6 +296,17 @@ export async function addContextFiles(
     )
   }
 
+  // Word documents run the same pipeline via a text-aware path.
+  for (const doc of docQueue) {
+    void import("~/pilot/analyst/run").then(({ ingestTextDocument }) =>
+      ingestTextDocument(doc, {
+        docId: doc.name,
+        company: deriveCompany(doc.name),
+        period: "",
+      })
+    )
+  }
+
   // If a voice session is live, push the new context straight into it so PILOT
   // knows immediately — no need to wait for him to call read_context.
   if (added > 0 && voiceBridge.active) {
@@ -322,6 +349,12 @@ export function describeUpload(r: {
   if (nameOnly.length) {
     parts.push(
       `${nameOnly.map((f) => f.name).join(", ")} added by name only (couldn't read the text)`
+    )
+  }
+  const tooLarge = r.files.filter((f) => f.outcome === "toolarge")
+  if (tooLarge.length) {
+    parts.push(
+      `${tooLarge.map((f) => f.name).join(", ")} is over ${MAX_FILE_LABEL}, too big to analyse. Try a smaller export.`
     )
   }
   if (r.skippedImages) {

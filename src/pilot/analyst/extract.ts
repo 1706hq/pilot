@@ -118,6 +118,64 @@ Return exactly this shape:
  "tables": [{"title": <string>, "columns": [<string>], "rows": [{"label": <string>, "cells": [{"column": <string>, "value": <number|"unreadable">, "unit": "£k"|"%"|null}]}]}],
  "narrative": [], "charts": [], "unreadable": [<string>]}`
 
+export const DOC_EXTRACT_PROMPT = `You are transcribing part of a business report or document for Peter Jones, for an audit trail. Output ONLY a JSON object, no prose, no markdown fences.
+
+Capture BOTH of these faithfully (do NOT interpret, summarise, or invent):
+- FIGURES: any metric, KPI, financial number, percentage, count or date stated. Put them in tables — row label is what it measures, columns are the values/periods given. Parentheses mean negative. Record the unit ("£k" for money in thousands, "%" for a percentage, otherwise null) and keep the exact number.
+- STATEMENTS: key points, decisions, risks, actions (with owner and due date if given), and notable findings — as narrative items, verbatim and trimmed.
+
+If something is unclear, omit it rather than guess.
+
+Return exactly this shape:
+{"sourcePage": <int>, "pageType": "narrative"|"table"|"mixed", "grain": <string|null>, "pageTitle": <string>,
+ "tables": [{"title": <string>, "columns": [<string>], "rows": [{"label": <string>, "cells": [{"column": <string>, "value": <number|"unreadable">, "unit": "£k"|"%"|null}]}]}],
+ "narrative": [{"text": <string>, "owner": <string?>, "due": <string?>, "status": <string?>}],
+ "charts": [], "unreadable": []}`
+
+/**
+ * Transcribe one chunk of a text document (e.g. a Word report) into the SAME
+ * structured page shape the PDF path produces — capturing both figures (tables)
+ * and key statements (narrative) so prose-heavy reports still ground and analyse.
+ */
+export async function extractDocChunk(
+  text: string,
+  chunkIndex: number,
+  model: string = VISION_MODEL
+): Promise<ExtractedPage | null> {
+  const { config } = usePilotStore.getState()
+  if (!config.openRouterKey) return null
+  try {
+    const res = await fetch(OPENROUTER_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${config.openRouterKey}`,
+        "HTTP-Referer": "https://pilot.local",
+        "X-Title": "PILOT",
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0,
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "user",
+            content: `${DOC_EXTRACT_PROMPT}\n\nThis is section ${chunkIndex} of the document.\n\nDOCUMENT TEXT:\n${text.slice(0, 16000)}`,
+          },
+        ],
+      }),
+    })
+    if (!res.ok) return null
+    const data = (await res.json()) as OpenAIResp
+    const content = data.choices?.[0]?.message?.content
+    if (!content) return null
+    const obj = parseJson(content) as ExtractedPage
+    return { ...obj, sourcePage: chunkIndex }
+  } catch {
+    return null
+  }
+}
+
 /**
  * Transcribe one spreadsheet sheet (passed as CSV text) into the SAME structured
  * page shape the PDF path produces, so it flows through reconcile / consolidate /

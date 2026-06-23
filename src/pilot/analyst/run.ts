@@ -8,7 +8,7 @@
 
 import { analyze, critique, ANALYSIS_MODEL } from "~/pilot/analyst/analyze"
 import { consolidate } from "~/pilot/analyst/consolidate"
-import { extractPage, extractSheet, VISION_MODEL } from "~/pilot/analyst/extract"
+import { extractPage, extractSheet, extractDocChunk, VISION_MODEL } from "~/pilot/analyst/extract"
 import { renderPdfToPages } from "~/pilot/analyst/render"
 import { saveKnowledgeBase } from "~/pilot/analyst/store"
 import { reconcile } from "~/pilot/analyst/verify"
@@ -222,6 +222,129 @@ export async function ingestSpreadsheet(
       .getState()
       .setNotice(
         `${meta.company} is analysed and ready: ${kb.ledger.length} figures, ${kb.insights.length} insights.`
+      )
+    return kb
+  } catch (e) {
+    usePilotStore.getState().updateTask(taskId, {
+      status: "error",
+      label: `BLACKBOX failed: ${e instanceof Error ? e.message : String(e)}`.slice(0, 60),
+    })
+    setIngest({ phase: "error", error: e instanceof Error ? e.message : String(e) })
+    usePilotStore
+      .getState()
+      .setNotice(`Couldn't read ${meta.company}. Try re-uploading the file.`)
+    return null
+  }
+}
+
+/** Split long document text into paragraph-aligned chunks (capped count). */
+function chunkText(text: string, maxChars = 12_000, maxChunks = 40): string[] {
+  const paras = text.split(/\n\s*\n/)
+  const chunks: string[] = []
+  let cur = ""
+  for (const p of paras) {
+    if (cur.length + p.length + 2 > maxChars && cur) {
+      chunks.push(cur)
+      cur = ""
+      if (chunks.length >= maxChunks) break
+    }
+    cur += (cur ? "\n\n" : "") + p
+  }
+  if (cur && chunks.length < maxChunks) chunks.push(cur)
+  return chunks
+}
+
+/**
+ * Ingest a text document (.docx / .doc / large .txt/.md) into the SAME grounded
+ * knowledge base. We pull the text (Word via mammoth), chunk it, and transcribe
+ * each chunk with extractDocChunk — capturing figures AND key statements — then
+ * the audit, consolidate, analyse and critique stages are identical. So a Word
+ * board pack or brief gets the full BLACKBOX treatment, not a raw text dump.
+ */
+export async function ingestTextDocument(
+  file: File,
+  meta: IngestMeta
+): Promise<KnowledgeBase | null> {
+  const store = usePilotStore.getState()
+  const apiKey = store.config.openRouterKey
+  if (!apiKey) {
+    store.setNotice("Add your OpenRouter key in Settings to analyse documents.")
+    return null
+  }
+  const taskId = store.addTask({
+    label: `BLACKBOX · reading ${meta.company}`,
+    agent: "MARSHALL",
+    status: "working",
+  })
+  const ingestId = store.startIngest({ fileName: file.name, company: meta.company })
+  const setLabel = (label: string) =>
+    usePilotStore.getState().updateTask(taskId, { label: label.slice(0, 60) })
+  const setIngest = (patch: Parameters<typeof store.updateIngest>[1]) =>
+    usePilotStore.getState().updateIngest(ingestId, patch)
+
+  try {
+    setLabel(`BLACKBOX · opening ${meta.company}`)
+    let text = ""
+    if (/\.docx?$/i.test(file.name)) {
+      const mod = await import("mammoth/mammoth.browser.js")
+      const mammoth = mod.default ?? mod
+      const { value } = await mammoth.extractRawText({ arrayBuffer: await file.arrayBuffer() })
+      text = value
+    } else {
+      text = await file.text()
+    }
+    if (!text.trim()) throw new Error("no readable text")
+    const chunks = chunkText(text)
+    if (chunks.length === 0) throw new Error("no readable text")
+    setIngest({ phase: "reading", total: chunks.length })
+
+    let done = 0
+    const pages = (
+      await pool(chunks, EXTRACT_CONCURRENCY, async (c, i) => {
+        const page = await extractDocChunk(c, i + 1, VISION_MODEL)
+        setLabel(`BLACKBOX · reading section ${++done}/${chunks.length}`)
+        setIngest({ done })
+        return page
+      })
+    ).filter((p): p is ExtractedPage => Boolean(p))
+    if (pages.length === 0) throw new Error("could not read the document")
+
+    setLabel("BLACKBOX · auditing the numbers")
+    setIngest({ phase: "auditing" })
+    const rec = reconcile(pages)
+    setLabel("BLACKBOX · consolidating")
+    const consolidated = consolidate(pages)
+    setLabel("BLACKBOX · analysing")
+    setIngest({ phase: "analysing" })
+    const draft = await analyze(consolidated, { apiKey, model: ANALYSIS_MODEL })
+    setLabel("BLACKBOX · checking its own work")
+    const final = await critique(consolidated, draft, { apiKey, model: ANALYSIS_MODEL })
+
+    const kb: KnowledgeBase = {
+      docId: meta.docId,
+      company: meta.company,
+      period: meta.period,
+      ledger: consolidated.ledger,
+      narrative: consolidated.narrative,
+      feedback: consolidated.feedback,
+      entities: consolidated.entities,
+      summary: final.summary,
+      insights: final.insights,
+      qa: final.qa,
+      flags: rec.flags,
+      builtAt: Date.now(),
+    }
+    saveKnowledgeBase(kb)
+
+    usePilotStore.getState().updateTask(taskId, {
+      status: "done",
+      label: `BLACKBOX · ${meta.company} ready (${kb.ledger.length} figures)`,
+    })
+    setIngest({ phase: "ready", figures: kb.ledger.length, readyAt: Date.now() })
+    usePilotStore
+      .getState()
+      .setNotice(
+        `${meta.company} is analysed and ready: ${kb.insights.length} insights, ${kb.ledger.length} figures.`
       )
     return kb
   } catch (e) {
