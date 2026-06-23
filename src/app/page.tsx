@@ -26,6 +26,7 @@ import { initContext } from "~/pilot/storage/context"
 import { pickGreeting, type Greeting } from "~/pilot/voice/greetings"
 import { useLaunch } from "~/pilot/launch/useLaunch"
 import { UpdatePrompt } from "~/pilot/update/UpdatePrompt"
+import { UploadStatus } from "~/components/home/upload-status"
 import { DevStatePanel } from "~/components/home/dev-state-panel"
 
 /** Smooth opacity reveal used by the staged launch sequence. */
@@ -100,6 +101,7 @@ export default function Home() {
       </div>
 
       <SettingsModal />
+      <UploadStatus />
       <DevStatePanel />
       <UpdatePrompt />
     </main>

@@ -13,6 +13,7 @@ import type {
   AgentId,
   ChatMessage,
   ContextFileMeta,
+  Ingest,
   PilotConfig,
   PilotState,
   Task,
@@ -31,6 +32,8 @@ interface PilotStore {
   activeAgent: AgentId
   conversation: ChatMessage[]
   tasks: Task[]
+  /** Live upload/analysis jobs, surfaced in the prominent upload-status UI. */
+  ingests: Ingest[]
   widgets: WidgetSpec[]
   contextFiles: ContextFileMeta[]
   config: PilotConfig
@@ -58,6 +61,11 @@ interface PilotStore {
   updateTask: (id: string, patch: Partial<Task>) => void
   clearTasks: () => void
 
+  /** Begin tracking an upload; returns its id for stage updates. */
+  startIngest: (init: { fileName: string; company: string }) => string
+  updateIngest: (id: string, patch: Partial<Ingest>) => void
+  removeIngest: (id: string) => void
+
   /** Stamp meta onto a widget body and push it (newest first). */
   addWidget: (body: WidgetBody, agent: AgentId, source?: string) => string
   removeWidget: (id: string) => void
@@ -72,6 +80,7 @@ export const usePilotStore = create<PilotStore>((set) => ({
   activeAgent: "PILOT",
   conversation: [],
   tasks: [],
+  ingests: [],
   widgets: [],
   contextFiles: [],
   config: {},
@@ -116,6 +125,23 @@ export const usePilotStore = create<PilotStore>((set) => ({
       tasks: s.tasks.map((t) => (t.id === id ? { ...t, ...patch } : t)),
     })),
   clearTasks: () => set({ tasks: [] }),
+
+  startIngest: (init) => {
+    const id = uid("ing")
+    set((s) => ({
+      ingests: [
+        ...s.ingests,
+        { ...init, id, phase: "uploading", done: 0, total: 0, startedAt: Date.now() },
+      ],
+    }))
+    return id
+  },
+  updateIngest: (id, patch) =>
+    set((s) => ({
+      ingests: s.ingests.map((i) => (i.id === id ? { ...i, ...patch } : i)),
+    })),
+  removeIngest: (id) =>
+    set((s) => ({ ingests: s.ingests.filter((i) => i.id !== id) })),
 
   addWidget: (body, agent, source) => {
     const id = uid("w")

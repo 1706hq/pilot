@@ -53,8 +53,11 @@ export async function ingestDocument(file: File, meta: IngestMeta): Promise<Know
     agent: "MARSHALL",
     status: "working",
   })
+  const ingestId = store.startIngest({ fileName: file.name, company: meta.company })
   const setLabel = (label: string) =>
     usePilotStore.getState().updateTask(taskId, { label: label.slice(0, 60) })
+  const setIngest = (patch: Parameters<typeof store.updateIngest>[1]) =>
+    usePilotStore.getState().updateIngest(ingestId, patch)
 
   try {
     // Stage 0 — render.
@@ -62,6 +65,7 @@ export async function ingestDocument(file: File, meta: IngestMeta): Promise<Know
     const images = await renderPdfToPages(file, {
       onPage: (d, t) => setLabel(`BLACKBOX · rendering ${d}/${t}`),
     })
+    setIngest({ phase: "reading", total: images.length })
 
     // Stage 1 — extract (per page, capped concurrency).
     let extracted = 0
@@ -69,12 +73,14 @@ export async function ingestDocument(file: File, meta: IngestMeta): Promise<Know
       await pool(images, EXTRACT_CONCURRENCY, async (img, i) => {
         const page = await extractPage(img, i + 1, VISION_MODEL)
         setLabel(`BLACKBOX · extracting ${++extracted}/${images.length}`)
+        setIngest({ done: extracted })
         return page
       })
     ).filter((p): p is ExtractedPage => Boolean(p))
 
     // Stage 2 — audit / reconcile.
     setLabel("BLACKBOX · auditing the numbers")
+    setIngest({ phase: "auditing" })
     const rec = reconcile(pages)
 
     // Stage 3 — consolidate.
@@ -83,6 +89,7 @@ export async function ingestDocument(file: File, meta: IngestMeta): Promise<Know
 
     // Stages 4 + 5 — analyze, then self-critique.
     setLabel("BLACKBOX · analysing")
+    setIngest({ phase: "analysing" })
     const draft = await analyze(consolidated, { apiKey, model: ANALYSIS_MODEL })
     setLabel("BLACKBOX · checking its own work")
     const final = await critique(consolidated, draft, { apiKey, model: ANALYSIS_MODEL })
@@ -108,6 +115,7 @@ export async function ingestDocument(file: File, meta: IngestMeta): Promise<Know
       status: "done",
       label: `BLACKBOX · ${meta.company} ready (${rec.passed}/${rec.checks} reconciled)`,
     })
+    setIngest({ phase: "ready", figures: kb.ledger.length, readyAt: Date.now() })
     usePilotStore
       .getState()
       .setNotice(
@@ -119,6 +127,7 @@ export async function ingestDocument(file: File, meta: IngestMeta): Promise<Know
       status: "error",
       label: `BLACKBOX failed: ${e instanceof Error ? e.message : String(e)}`.slice(0, 60),
     })
+    setIngest({ phase: "error", error: e instanceof Error ? e.message : String(e) })
     return null
   }
 }
@@ -145,8 +154,11 @@ export async function ingestSpreadsheet(
     agent: "STERLING",
     status: "working",
   })
+  const ingestId = store.startIngest({ fileName: file.name, company: meta.company })
   const setLabel = (label: string) =>
     usePilotStore.getState().updateTask(taskId, { label: label.slice(0, 60) })
+  const setIngest = (patch: Parameters<typeof store.updateIngest>[1]) =>
+    usePilotStore.getState().updateIngest(ingestId, patch)
 
   try {
     // Parse the workbook to one CSV per non-empty sheet.
@@ -159,6 +171,7 @@ export async function ingestSpreadsheet(
       csv: XLSX.utils.sheet_to_csv(wb.Sheets[name]).trim(),
     })).filter((s) => s.csv)
     if (sheets.length === 0) throw new Error("no readable sheets")
+    setIngest({ phase: "reading", total: sheets.length })
 
     // Stage 1 — transcribe each sheet (capped concurrency, same as pages).
     let done = 0
@@ -166,6 +179,7 @@ export async function ingestSpreadsheet(
       await pool(sheets, EXTRACT_CONCURRENCY, async (s, i) => {
         const page = await extractSheet(s.csv, i + 1, s.name, VISION_MODEL)
         setLabel(`BLACKBOX · reading sheet ${++done}/${sheets.length}`)
+        setIngest({ done })
         return page
       })
     ).filter((p): p is ExtractedPage => Boolean(p))
@@ -173,10 +187,12 @@ export async function ingestSpreadsheet(
 
     // Stages 2-6 — identical to the PDF path.
     setLabel("BLACKBOX · auditing the numbers")
+    setIngest({ phase: "auditing" })
     const rec = reconcile(pages)
     setLabel("BLACKBOX · consolidating")
     const consolidated = consolidate(pages)
     setLabel("BLACKBOX · analysing")
+    setIngest({ phase: "analysing" })
     const draft = await analyze(consolidated, { apiKey, model: ANALYSIS_MODEL })
     setLabel("BLACKBOX · checking its own work")
     const final = await critique(consolidated, draft, { apiKey, model: ANALYSIS_MODEL })
@@ -201,6 +217,7 @@ export async function ingestSpreadsheet(
       status: "done",
       label: `BLACKBOX · ${meta.company} ready (${kb.ledger.length} figures)`,
     })
+    setIngest({ phase: "ready", figures: kb.ledger.length, readyAt: Date.now() })
     usePilotStore
       .getState()
       .setNotice(
@@ -212,6 +229,7 @@ export async function ingestSpreadsheet(
       status: "error",
       label: `BLACKBOX failed: ${e instanceof Error ? e.message : String(e)}`.slice(0, 60),
     })
+    setIngest({ phase: "error", error: e instanceof Error ? e.message : String(e) })
     usePilotStore
       .getState()
       .setNotice(`Couldn't read ${meta.company}. Try re-uploading the file.`)

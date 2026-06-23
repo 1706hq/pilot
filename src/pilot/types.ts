@@ -37,6 +37,31 @@ export interface Task {
   startedAt: number
 }
 
+/** The lifecycle of an uploaded document being analysed by BLACKBOX. */
+export type IngestPhase =
+  | "uploading"
+  | "reading"
+  | "auditing"
+  | "analysing"
+  | "ready"
+  | "error"
+
+/** A live, user-facing record of one upload being processed, for the status UI. */
+export interface Ingest {
+  id: string
+  fileName: string
+  company: string
+  phase: IngestPhase
+  /** Pages/sheets read so far, and the total, for the progress bar + ETA. */
+  done: number
+  total: number
+  /** Grounded figures extracted, set when ready. */
+  figures?: number
+  error?: string
+  startedAt: number
+  readyAt?: number
+}
+
 /**
  * How a file's contents landed in context — drives the honest "Readable" vs
  * "name only" status PILOT shows so Peter can trust what's actually been read.
