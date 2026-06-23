@@ -12,7 +12,7 @@ import { OutputSidebar } from "~/components/home/output-sidebar"
 import { Radar } from "~/components/home/radar"
 import { ReferenceComposer } from "~/components/home/reference-composer"
 import { SettingsModal } from "~/components/home/settings-modal"
-import { TodaysBrief } from "~/components/home/todays-brief"
+import { RadarPanel } from "~/components/home/radar-panel"
 import { Transcript } from "~/components/home/transcript"
 import { cn } from "~/lib/utils"
 import { sendMessage } from "~/pilot/agents/orchestrator"
@@ -225,8 +225,9 @@ function HomeView({ greeting, phase }: { greeting: Greeting; phase: number }) {
         </p>
       </div>
 
-      {/* Today's Brief — the morning decision summary Peter asked to have back.
-          Lives below the orb on the resting screen; hidden once chatting. */}
+      {/* RADAR — proactive intelligence below the orb on the resting screen:
+          turbulence, tailwinds and signals across the data, tappable to explore.
+          Hidden once chatting. */}
       <div
         className={cn(
           "absolute left-1/2 bottom-[128px] top-[49%] w-[min(calc(100%-48px),620px)] -translate-x-1/2 transition-opacity duration-[900ms]",
@@ -235,7 +236,7 @@ function HomeView({ greeting, phase }: { greeting: Greeting; phase: number }) {
             : "pointer-events-none opacity-0"
         )}
       >
-        <TodaysBrief className="h-full" />
+        <RadarPanel className="h-full" />
       </div>
 
       {/* Transcript — a height-bounded scroll area between the orb and the
