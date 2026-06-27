@@ -49,6 +49,8 @@ export default function Home() {
     if (!usePilotStore.getState().config.openRouterKey) {
       usePilotStore.getState().setSettingsOpen(true)
     }
+    // Pull any analysis done on his other devices (no-op if sync isn't set up).
+    void import("~/pilot/sync/sync").then((m) => m.syncKnowledge())
   }, [])
 
   return (

@@ -131,6 +131,8 @@ export function SettingsModal() {
   const [elevenLabsKey, setElevenLabsKey] = useState("")
   const [agentId, setAgentId] = useState("")
   const [model, setModel] = useState("")
+  const [syncUrl, setSyncUrl] = useState("")
+  const [syncToken, setSyncToken] = useState("")
   const [saved, setSaved] = useState(false)
   const [testing, setTesting] = useState(false)
   const [results, setResults] = useState<{ or?: KeyTest; el?: KeyTest } | null>(null)
@@ -142,6 +144,8 @@ export function SettingsModal() {
       setElevenLabsKey(config.elevenLabsKey ?? "")
       setAgentId(config.elevenLabsAgentId ?? DEFAULT_AGENT_ID)
       setModel(config.model ?? DEFAULT_MODEL)
+      setSyncUrl(config.syncUrl ?? "")
+      setSyncToken(config.syncToken ?? "")
       setSaved(false)
       setResults(null)
       setTesting(false)
@@ -182,6 +186,8 @@ export function SettingsModal() {
       elevenLabsKey: elKey,
       elevenLabsAgentId: agentId || DEFAULT_AGENT_ID,
       model: model || DEFAULT_MODEL,
+      syncUrl,
+      syncToken,
     })
     setSaved(true)
     usePilotStore.getState().setNotice("Settings saved on this device")
@@ -268,6 +274,35 @@ export function SettingsModal() {
                 your ElevenLabs profile. PILOT talks to those services directly from
                 this Mac.
               </p>
+
+              <div className="mt-1 border-t border-white/8 pt-4">
+                <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/40">
+                  Sync across devices (optional)
+                </div>
+                <div className="flex flex-col gap-4">
+                  <Field
+                    label="Sync store URL"
+                    hint="so you upload once"
+                    value={syncUrl}
+                    onChange={setSyncUrl}
+                    placeholder="https://…"
+                    mono
+                  />
+                  <Field
+                    label="Sync token"
+                    value={syncToken}
+                    onChange={setSyncToken}
+                    placeholder="secret token"
+                    secret
+                    mono
+                  />
+                  <p className="text-[11px] leading-relaxed text-white/35">
+                    Set the same store on each device and your analysed data stays in
+                    sync, so a report you add on one shows up on the others. Leave blank
+                    to keep everything only on this device.
+                  </p>
+                </div>
+              </div>
 
               {results ? (
                 <div className="flex flex-col gap-1.5 rounded-xl border border-white/10 bg-black/30 px-3.5 py-3">

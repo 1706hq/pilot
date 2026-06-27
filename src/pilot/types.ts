@@ -97,4 +97,9 @@ export interface PilotConfig {
   porcupineKey?: string
   /** OpenRouter model id; falls back to the app default when unset. */
   model?: string
+  /** Private sync store endpoint — analysed data is pushed/pulled here so it's
+   *  the same across Peter's devices (he uploads once). Optional. */
+  syncUrl?: string
+  /** Bearer token for the sync store. */
+  syncToken?: string
 }

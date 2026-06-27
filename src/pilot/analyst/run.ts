@@ -9,6 +9,7 @@
 import { analyze, critique, ANALYSIS_MODEL } from "~/pilot/analyst/analyze"
 import { consolidate } from "~/pilot/analyst/consolidate"
 import { validateLedger } from "~/pilot/analyst/validate"
+import { syncKnowledge } from "~/pilot/sync/sync"
 import { extractPage, extractSheet, extractDocChunk, VISION_MODEL } from "~/pilot/analyst/extract"
 import { renderPdfToPages } from "~/pilot/analyst/render"
 import { saveKnowledgeBase } from "~/pilot/analyst/store"
@@ -113,6 +114,7 @@ export async function ingestDocument(file: File, meta: IngestMeta): Promise<Know
       builtAt: Date.now(),
     }
     saveKnowledgeBase(kb)
+    void syncKnowledge() // share the result to Peter's other devices (no-op if off)
 
     usePilotStore.getState().updateTask(taskId, {
       status: "done",
@@ -217,6 +219,7 @@ export async function ingestSpreadsheet(
       builtAt: Date.now(),
     }
     saveKnowledgeBase(kb)
+    void syncKnowledge() // share the result to Peter's other devices (no-op if off)
 
     usePilotStore.getState().updateTask(taskId, {
       status: "done",
@@ -342,6 +345,7 @@ export async function ingestTextDocument(
       builtAt: Date.now(),
     }
     saveKnowledgeBase(kb)
+    void syncKnowledge() // share the result to Peter's other devices (no-op if off)
 
     usePilotStore.getState().updateTask(taskId, {
       status: "done",

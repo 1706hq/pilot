@@ -67,6 +67,12 @@ export function hasKnowledge(): boolean {
   return listKnowledgeBases().length > 0
 }
 
+/** The device's OWN analysed docs (localStorage only, excludes bundled seeds) —
+ *  this is what the cross-device sync pushes/pulls. */
+export function localKnowledgeBases(): KnowledgeBase[] {
+  return Object.values(readAll())
+}
+
 /** Render a page-citation tag like " (p11, p14)" — safe for missing/empty arrays. */
 function cites(c: number[] | undefined): string {
   return c && c.length ? ` (p${c.join(", p")})` : ""
