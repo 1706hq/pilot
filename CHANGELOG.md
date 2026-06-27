@@ -2,6 +2,16 @@
 
 Notes for the team on what shipped in each release. Newest first.
 
+## v0.4.0 — reliability, accuracy + HUD (Peter's 27 Jun feedback)
+
+The big one. Addresses Peter's 27 June notes end to end, plus the mobile/web and sync groundwork.
+
+- **Reliability** — every OpenRouter call (reading documents, analysis, the Runway, chat) now goes through one resilient layer with a timeout and automatic retry/backoff on transient failures (429/5xx/network). This is what was causing "BLACKBOX failed", silently dropped pages (wrong numbers) and "the system timed out, try again". The upload pipeline is now best-effort: a wobble at the final analysis step never throws away a fully-read document. Chat shows a warm "connection hiccuped, give it another go" instead of a raw error.
+- **Accuracy** — retrieval is company-aware, so one company's figures never bleed into a question about another. The system prompt names exactly which companies have verified data and tells PILOT to say it doesn't have the rest yet, never to borrow another's numbers.
+- **Greeting** — now tracks the time of day (was frozen at launch, reading "Good morning" all evening).
+- **HUD** — the orb is the hero: large and centred, scaling up on a full screen, greeting directly beneath it. Layout pivot raised so the wordmark never clips the radar headings; clean vertical stack below it. The Runway is collapsed by default, opens when PILOT builds something, and has a deliberate open/close toggle with a count.
+- **Mobile + sync + gate** — responsive layout, a one-blob cross-device sync store, and a passcode gate for the hosted web build (groundwork for the mobile version).
+
 ## v0.3.2 — correct financial value types + validation
 
 Peter was seeing some numbers misread. Deep dive into BLACKBOX found and fixed it:
