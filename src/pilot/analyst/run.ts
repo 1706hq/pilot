@@ -8,6 +8,7 @@
 
 import { analyze, critique, ANALYSIS_MODEL } from "~/pilot/analyst/analyze"
 import { consolidate } from "~/pilot/analyst/consolidate"
+import { validateLedger } from "~/pilot/analyst/validate"
 import { extractPage, extractSheet, extractDocChunk, VISION_MODEL } from "~/pilot/analyst/extract"
 import { renderPdfToPages } from "~/pilot/analyst/render"
 import { saveKnowledgeBase } from "~/pilot/analyst/store"
@@ -86,6 +87,8 @@ export async function ingestDocument(file: File, meta: IngestMeta): Promise<Know
     // Stage 3 — consolidate.
     setLabel("BLACKBOX · consolidating")
     const consolidated = consolidate(pages)
+    const validation = validateLedger(consolidated.ledger)
+    consolidated.ledger = validation.ledger
 
     // Stages 4 + 5 — analyze, then self-critique.
     setLabel("BLACKBOX · analysing")
@@ -106,7 +109,7 @@ export async function ingestDocument(file: File, meta: IngestMeta): Promise<Know
       summary: final.summary,
       insights: final.insights,
       qa: final.qa,
-      flags: rec.flags,
+      flags: [...rec.flags, ...validation.flags],
       builtAt: Date.now(),
     }
     saveKnowledgeBase(kb)
@@ -191,6 +194,8 @@ export async function ingestSpreadsheet(
     const rec = reconcile(pages)
     setLabel("BLACKBOX · consolidating")
     const consolidated = consolidate(pages)
+    const validation = validateLedger(consolidated.ledger)
+    consolidated.ledger = validation.ledger
     setLabel("BLACKBOX · analysing")
     setIngest({ phase: "analysing" })
     const draft = await analyze(consolidated, { apiKey, model: ANALYSIS_MODEL })
@@ -208,7 +213,7 @@ export async function ingestSpreadsheet(
       summary: final.summary,
       insights: final.insights,
       qa: final.qa,
-      flags: rec.flags,
+      flags: [...rec.flags, ...validation.flags],
       builtAt: Date.now(),
     }
     saveKnowledgeBase(kb)
@@ -314,6 +319,8 @@ export async function ingestTextDocument(
     const rec = reconcile(pages)
     setLabel("BLACKBOX · consolidating")
     const consolidated = consolidate(pages)
+    const validation = validateLedger(consolidated.ledger)
+    consolidated.ledger = validation.ledger
     setLabel("BLACKBOX · analysing")
     setIngest({ phase: "analysing" })
     const draft = await analyze(consolidated, { apiKey, model: ANALYSIS_MODEL })
@@ -331,7 +338,7 @@ export async function ingestTextDocument(
       summary: final.summary,
       insights: final.insights,
       qa: final.qa,
-      flags: rec.flags,
+      flags: [...rec.flags, ...validation.flags],
       builtAt: Date.now(),
     }
     saveKnowledgeBase(kb)

@@ -26,6 +26,29 @@ function num(c: Cell | undefined): number | undefined {
   return c && typeof c.value === "number" ? c.value : undefined
 }
 
+/**
+ * Decide a value's unit when the extractor didn't tag one. CRITICAL for not
+ * misrepresenting figures: a plain count, ratio or £-value must NOT be silently
+ * called "£k" (money in thousands). Trust an explicit unit; otherwise infer from
+ * the labels, and when genuinely unclear leave it null (a plain number) rather
+ * than guessing money.
+ */
+function resolveUnit(metric: string, label: string, explicit: Unit): Unit {
+  if (explicit) return explicit
+  const t = `${metric} ${label}`.toLowerCase()
+  // Percentages / rates / points — never money.
+  if (/%|\bpts?\b|percent|\brate\b|\blfl\b|\byoy\b|\bgrowth\b|\bmix\b/.test(t) && !/£/.test(t))
+    return "%"
+  // Explicitly thousands.
+  if (/£\s?ks?\b|£'?000|£k\b|\bin thousands\b/.test(t)) return "£k"
+  // Counts and per-basket ratios are plain numbers, not money.
+  if (/\b(trx|transactions|orders|units|sessions|reviews|count|visits|#)\b|\bipb\b/.test(t))
+    return null
+  // Per-item money (ATV / ASP) is in actual £, not £k → keep as a plain number.
+  if (/\b(atv|asp|aov|per (order|basket|item))\b/.test(t)) return null
+  return null
+}
+
 /** Find the cell whose column matches all `must` substrings and none of `not`. */
 function pick(cells: Cell[], must: string[], not: string[] = []): Cell | undefined {
   return cells.find((c) => {
@@ -79,9 +102,9 @@ export function consolidate(pages: ExtractedPage[]): Consolidated {
         const firstNum = cells.find((c) => typeof c.value === "number")
         const value = num(act) ?? num(firstNum)
         if (value === undefined) continue
-        const unit: Unit = (act ?? firstNum)?.unit ?? "£k"
-
         const dim = row.label?.trim() || "—"
+        // Infer the unit honestly — never default a count/ratio/£ value to "£k".
+        const unit: Unit = resolveUnit(metric, dim, (act ?? firstNum)?.unit ?? null)
         if (CHANNELS.includes(dim.toLowerCase())) addEntity("channel", dim)
         else addEntity("category", dim)
 

@@ -25,7 +25,9 @@ export const EXTRACT_PROMPT = `You are transcribing ONE page of a financial trad
 ABSOLUTE RULES:
 - TRANSCRIBE, do not interpret, summarise, or compute anything.
 - Parentheses mean NEGATIVE: "(247)" -> -247, "(17.3%)" -> -17.3.
-- Record the unit of every numeric cell: "£k" or "%" (or null if neither).
+- UNIT of every numeric cell: "£k" ONLY if the figure is genuinely in thousands of pounds, "%" for a percentage, otherwise null.
+- A percentage shown as "42%" is the number 42, NOT 0.42 — read the displayed value.
+- Counts (transactions, orders, units, IPB) and per-item money in actual pounds (ATV, ASP) are PLAIN NUMBERS with unit null — never "£k".
 - Preserve the exact column meaning (Bud / ACT / vs Bud / vs Bud % / vs LY / LFL% etc.).
 - If a cell or chart value is illegible, set its value to "unreadable" — NEVER invent it.
 - Capture the page's grain/period if the title states it (e.g. "Last Week", "MTD", "N6W", "FY forecast").
@@ -108,6 +110,7 @@ ABSOLUTE RULES:
 - TRANSCRIBE, do not interpret, summarise, or compute anything.
 - A negative is anything in parentheses, with a leading minus, or shown in red: "(247)" -> -247.
 - Record the unit of every numeric cell: "£k" ONLY for monetary amounts in thousands, "%" for a percentage, otherwise null (keep the full number exactly, e.g. 455618). Counts (subscribers, customers, transactions, units) and per-unit money (ARPU, ASP, a single price) are NOT "£k" — use null and the actual number.
+- A percentage shown as "42%" is the number 42, NOT 0.42. If a cell reads "0.42" but the row is clearly a percentage (margin, mix, rate, share), it means 42 — record 42.
 - Preserve the exact column meaning (Actual / Budget / Forecast / Variance / vs Bud / LFL / YoY etc.). Use the row label as the metric and the column header as the dimension.
 - One sheet may hold several tables stacked vertically. Capture each as its own table.
 - If a value is unclear, set it to "unreadable" — NEVER invent it.
@@ -121,7 +124,7 @@ Return exactly this shape:
 export const DOC_EXTRACT_PROMPT = `You are transcribing part of a business report or document for Peter Jones, for an audit trail. Output ONLY a JSON object, no prose, no markdown fences.
 
 Capture BOTH of these faithfully (do NOT interpret, summarise, or invent):
-- FIGURES: any metric, KPI, financial number, percentage, count or date stated. Put them in tables — row label is what it measures, columns are the values/periods given. Parentheses mean negative. Record the unit ("£k" for money in thousands, "%" for a percentage, otherwise null) and keep the exact number.
+- FIGURES: any metric, KPI, financial number, percentage, count or date stated. Put them in tables — row label is what it measures, columns are the values/periods given. Parentheses mean negative. Record the unit ("£k" ONLY for money genuinely in thousands, "%" for a percentage, otherwise null) and keep the exact number. A percentage shown as "42%" is the number 42, not 0.42. Counts and per-item money (a single price) are plain numbers with unit null, never "£k".
 - STATEMENTS: key points, decisions, risks, actions (with owner and due date if given), and notable findings — as narrative items, verbatim and trimmed.
 
 If something is unclear, omit it rather than guess.
