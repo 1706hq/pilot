@@ -40,7 +40,7 @@ export function Wordmark({ className }: { className?: string }) {
           </span>
         ))}
       </div>
-      <div className="mt-[8px] text-[9.5px] font-semibold uppercase tracking-[0.3em] text-amber-300/90 [text-shadow:0_0_12px_rgba(252,211,77,0.45)]">
+      <div className="mt-[8px] whitespace-nowrap text-[8px] font-semibold uppercase tracking-[0.12em] text-amber-300/90 [text-shadow:0_0_12px_rgba(252,211,77,0.45)] md:text-[9.5px] md:tracking-[0.3em]">
         Peter&apos;s Intelligent Life Operating Terminal
       </div>
     </div>

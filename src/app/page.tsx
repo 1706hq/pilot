@@ -27,6 +27,7 @@ import { pickGreeting, type Greeting } from "~/pilot/voice/greetings"
 import { useLaunch } from "~/pilot/launch/useLaunch"
 import { UpdatePrompt } from "~/pilot/update/UpdatePrompt"
 import { UploadStatus } from "~/components/home/upload-status"
+import { MobileTopBar, MobileRunway } from "~/components/home/mobile-chrome"
 import { DevStatePanel } from "~/components/home/dev-state-panel"
 
 /** Smooth opacity reveal used by the staged launch sequence. */
@@ -86,7 +87,7 @@ export default function Home() {
       />
 
       <div className="absolute inset-0 z-10 flex h-full">
-        <div className={cn("z-20 h-full", reveal(phase >= 3))}>
+        <div className={cn("z-20 hidden h-full md:block", reveal(phase >= 3))}>
           <AgentsSidebar />
         </div>
 
@@ -105,13 +106,15 @@ export default function Home() {
           </ConversationProvider>
         </section>
 
-        <div className={cn("z-20 h-full", reveal(phase >= 3))}>
+        <div className={cn("z-20 hidden h-full md:block", reveal(phase >= 3))}>
           <OutputSidebar />
         </div>
       </div>
 
       <SettingsModal />
       <UploadStatus />
+      <MobileTopBar className={reveal(phase >= 3)} />
+      <MobileRunway />
       <DevStatePanel />
       <UpdatePrompt />
     </main>
@@ -167,8 +170,9 @@ function HomeView({ greeting, phase }: { greeting: Greeting; phase: number }) {
       {/* Cockpit framing — faint corner brackets around the central stage. */}
       <CornerBrackets className={reveal(phase >= 3)} />
 
-      {/* Top HUD — thin telemetry strip with the wordmark centred above it. */}
-      <div className={cn("pointer-events-none absolute inset-x-0 top-0 z-30", reveal(phase >= 3))}>
+      {/* Top HUD — thin telemetry strip with the wordmark centred above it.
+          Hidden on mobile, where it's too dense for the width. */}
+      <div className={cn("pointer-events-none absolute inset-x-0 top-0 z-30 hidden md:block", reveal(phase >= 3))}>
         <TelemetryTicker className="px-5 pt-3" />
       </div>
       <Wordmark

@@ -184,7 +184,7 @@ export function UploadStatus() {
   if (ingests.length === 0) return null
 
   return (
-    <div className="pointer-events-none fixed bottom-5 right-5 z-50 flex w-[340px] flex-col gap-2">
+    <div className="pointer-events-none fixed inset-x-3 bottom-[150px] z-50 flex flex-col gap-2 md:inset-x-auto md:bottom-5 md:right-5 md:w-[340px]">
       <AnimatePresence initial={false}>
         {ingests.map((ing) => (
           <Card key={ing.id} ing={ing} onDismiss={() => removeIngest(ing.id)} />
