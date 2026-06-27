@@ -2,6 +2,13 @@
 
 Notes for the team on what shipped in each release. Newest first.
 
+## v0.3.1 — UI cleanup + restrained voice (Peter feedback)
+
+- **Contained the orb/radar** so the rings no longer bleed into the greeting above or the readings below; re-spaced the resting screen.
+- **Landscape pivot**: on wide windows the home now pivots to orb + greeting on the left and the RADAR readings as a column on the right; clean stack on narrow.
+- **Draggable window**: added a top drag strip (`data-tauri-drag-region`) so the window moves like any mac app, inset to keep the traffic lights and menu clickable.
+- **Restrained voice**: ready-and-wait spoken openers, and the ElevenLabs agent now says its opening line then waits, never volunteering a briefing or company data on connect unless asked (greeting in `greetings.ts`; agent prompt patched server-side).
+
 ## v0.3.0 — upload accuracy across all file types + RADAR
 
 The theme: make Peter's own report uploads as accurate as the pre-seeded data, give him clear feedback while they process, and add proactive intelligence.
