@@ -60,3 +60,6 @@ Desktop.ini
 *.sw?
 .vercel
 .env*.local
+
+# Playwright MCP test artifacts
+.playwright-mcp
