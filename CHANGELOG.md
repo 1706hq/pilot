@@ -2,6 +2,15 @@
 
 Notes for the team on what shipped in each release. Newest first.
 
+## v0.3.2 — correct financial value types + validation
+
+Peter was seeing some numbers misread. Deep dive into BLACKBOX found and fixed it:
+- **Unit handling**: `consolidate` no longer defaults a missing unit to `£k`. Counts (transactions, subscribers) and per-item money (ATV, ASP, ARPU) were being presented as money in thousands; `resolveUnit()` now infers honestly and leaves unknowns as plain numbers.
+- **Bad seed data dropped**: two engine-extracted KPI trackers had misread values (e.g. £455m weekly net sales) and value-types mislabelled as dimensions. Removed; the clean Trade Pack + New(1) cover American Golf accurately.
+- **`validate.ts`**: flags and lowers confidence on percentages that look like fractions, implausibly large `£k` figures, and value-type-as-dimension labels (honesty trail, never a silent rewrite).
+- **Prompts**: a percentage "42%" is 42 not 0.42; counts and per-item money are plain numbers, never `£k`.
+- Verified end-to-end on a Truly-style KPI spreadsheet. Known follow-up: pivot-aware consolidate for value-types-as-rows trackers.
+
 ## v0.3.1 — UI cleanup + restrained voice (Peter feedback)
 
 - **Contained the orb/radar** so the rings no longer bleed into the greeting above or the readings below; re-spaced the resting screen.
