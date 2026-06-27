@@ -7,10 +7,10 @@
  * identical logic.
  */
 
+import { openrouterContent } from "~/pilot/agents/openrouter"
 import type { Consolidated } from "~/pilot/analyst/consolidate"
 import type { Insight, LedgerRecord, QAEntry } from "~/pilot/analyst/types"
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 /** Reasoning over text is cheap; use a strong model but not necessarily vision. */
 export const ANALYSIS_MODEL = "google/gemini-3.1-pro-preview"
 
@@ -41,24 +41,16 @@ export function ledgerToText(ledger: LedgerRecord[]): string {
 }
 
 async function callJson(messages: unknown[], opts: Opts): Promise<unknown> {
-  const res = await fetch(OPENROUTER_URL, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${opts.apiKey}`,
-      "HTTP-Referer": "https://pilot.local",
-      "X-Title": "PILOT",
-    },
-    body: JSON.stringify({
+  const content = await openrouterContent(
+    opts.apiKey,
+    {
       model: opts.model || ANALYSIS_MODEL,
       temperature: 0.2,
       response_format: { type: "json_object" },
       messages,
-    }),
-  })
-  if (!res.ok) throw new Error(`analysis ${res.status}`)
-  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] }
-  const content = data.choices?.[0]?.message?.content || "{}"
+    },
+    { timeoutMs: 120_000, retries: 3 }
+  )
   const a = content.indexOf("{")
   const b = content.lastIndexOf("}")
   return JSON.parse(a >= 0 && b > a ? content.slice(a, b + 1) : content)

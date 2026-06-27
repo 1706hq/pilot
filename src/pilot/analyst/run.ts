@@ -6,8 +6,8 @@
  * reports each stage into the Tasks feed and never blocks the UI.
  */
 
-import { analyze, critique, ANALYSIS_MODEL } from "~/pilot/analyst/analyze"
-import { consolidate } from "~/pilot/analyst/consolidate"
+import { analyze, critique, ANALYSIS_MODEL, type AnalysisResult } from "~/pilot/analyst/analyze"
+import { consolidate, type Consolidated } from "~/pilot/analyst/consolidate"
 import { validateLedger } from "~/pilot/analyst/validate"
 import { syncKnowledge } from "~/pilot/sync/sync"
 import { extractPage, extractSheet, extractDocChunk, VISION_MODEL } from "~/pilot/analyst/extract"
@@ -38,6 +38,37 @@ export interface IngestMeta {
   docId: string
   company: string
   period: string
+}
+
+/**
+ * Analyse + self-critique, but NEVER throw the whole document away because the
+ * final reasoning step had a wobble. The figures are already extracted and
+ * verified by this point; if analyze fails we still save them with a plain
+ * summary (Peter can ask about every number), and if the critique pass fails we
+ * keep the grounded draft. This is why a transient blip no longer turns a good
+ * upload into "BLACKBOX failed".
+ */
+async function analyseBestEffort(
+  consolidated: Consolidated,
+  apiKey: string,
+  setLabel: (label: string) => void
+): Promise<AnalysisResult> {
+  let draft: AnalysisResult
+  try {
+    draft = await analyze(consolidated, { apiKey, model: ANALYSIS_MODEL })
+  } catch {
+    return {
+      summary: `${consolidated.ledger.length} figures captured and verified. Ask me anything about them.`,
+      insights: [],
+      qa: [],
+    }
+  }
+  setLabel("BLACKBOX · checking its own work")
+  try {
+    return await critique(consolidated, draft, { apiKey, model: ANALYSIS_MODEL })
+  } catch {
+    return draft // the critique pass is a bonus; the draft is already grounded.
+  }
 }
 
 /**
@@ -79,6 +110,7 @@ export async function ingestDocument(file: File, meta: IngestMeta): Promise<Know
         return page
       })
     ).filter((p): p is ExtractedPage => Boolean(p))
+    if (pages.length === 0) throw new Error("could not read any pages")
 
     // Stage 2 — audit / reconcile.
     setLabel("BLACKBOX · auditing the numbers")
@@ -94,9 +126,7 @@ export async function ingestDocument(file: File, meta: IngestMeta): Promise<Know
     // Stages 4 + 5 — analyze, then self-critique.
     setLabel("BLACKBOX · analysing")
     setIngest({ phase: "analysing" })
-    const draft = await analyze(consolidated, { apiKey, model: ANALYSIS_MODEL })
-    setLabel("BLACKBOX · checking its own work")
-    const final = await critique(consolidated, draft, { apiKey, model: ANALYSIS_MODEL })
+    const final = await analyseBestEffort(consolidated, apiKey, setLabel)
 
     // Stage 6 — store.
     const kb: KnowledgeBase = {
@@ -200,9 +230,7 @@ export async function ingestSpreadsheet(
     consolidated.ledger = validation.ledger
     setLabel("BLACKBOX · analysing")
     setIngest({ phase: "analysing" })
-    const draft = await analyze(consolidated, { apiKey, model: ANALYSIS_MODEL })
-    setLabel("BLACKBOX · checking its own work")
-    const final = await critique(consolidated, draft, { apiKey, model: ANALYSIS_MODEL })
+    const final = await analyseBestEffort(consolidated, apiKey, setLabel)
 
     const kb: KnowledgeBase = {
       docId: meta.docId,
@@ -326,9 +354,7 @@ export async function ingestTextDocument(
     consolidated.ledger = validation.ledger
     setLabel("BLACKBOX · analysing")
     setIngest({ phase: "analysing" })
-    const draft = await analyze(consolidated, { apiKey, model: ANALYSIS_MODEL })
-    setLabel("BLACKBOX · checking its own work")
-    const final = await critique(consolidated, draft, { apiKey, model: ANALYSIS_MODEL })
+    const final = await analyseBestEffort(consolidated, apiKey, setLabel)
 
     const kb: KnowledgeBase = {
       docId: meta.docId,

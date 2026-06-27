@@ -57,12 +57,23 @@ const PROMPTS: Record<AgentId, string> = {
 export function buildSystemPrompt(
   agent: AgentId,
   contextText?: string,
-  kbContext?: string
+  kbContext?: string,
+  availableCompanies: string[] = []
 ): string {
   const base = PROMPTS[agent] ?? PILOT_ONLY
   let prompt = `${base}\n\n${PETER_JONES_DOSSIER}
 
 NOTE on the background above: it is who Peter is, not his live management data. Any figures in it (turnover, store counts, valuations) are rough public estimates for context only — never present them as his current numbers. For anything financial, defer to his verified data below; if they conflict, trust the verified data and say so.`
+
+  // Hard guard against answering about a company we have no data for using
+  // another company's figures (Peter: "PILOT gives incorrect data on other
+  // portfolio companies — better to say he doesn't have the latest info").
+  const haveList = availableCompanies.length
+    ? `You currently have verified BLACKBOX data for ONLY: ${availableCompanies.join(", ")}.`
+    : `You currently have NO analysed company data.`
+  prompt += `\n\n## Which companies you have data for (critical)
+${haveList}
+For ANY other company in Peter's portfolio — Jessops, Levi Roots, Gener8, or any name not in that list — you do NOT have current figures. Do not estimate, infer, or borrow another company's numbers. Say plainly, in one warm line, that you don't have the latest on it yet and you'll have it the moment its pack is uploaded. Never present figures for a company you don't hold data for.`
 
   if (kbContext) {
     prompt += `\n\n## VERIFIED DATA (BLACKBOX) — your authoritative source of truth

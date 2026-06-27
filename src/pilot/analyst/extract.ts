@@ -14,9 +14,9 @@
  */
 
 import { usePilotStore } from "~/pilot/state/store"
+import { openrouterContent } from "~/pilot/agents/openrouter"
 import type { ExtractedPage } from "~/pilot/analyst/types"
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 /** Strongest vision model wins here — Peter's trust depends on the numbers. */
 export const VISION_MODEL = "google/gemini-3.1-pro-preview"
 
@@ -38,11 +38,6 @@ Return exactly this shape:
  "narrative": [{"text": <string>, "owner": <string?>, "due": <string?>, "status": <string?>}],
  "charts": [{"title": <string>, "axes": <string?>, "series": [<string>], "points": [<string>], "note": <string?>}],
  "unreadable": [<string>]}`
-
-interface OpenAIResp {
-  choices?: { message?: { content?: string } }[]
-  error?: { message?: string }
-}
 
 /** Strip stray fences and grab the outermost JSON object. */
 function parseJson(text: string): unknown {
@@ -70,15 +65,9 @@ export async function extractPage(
     ? pngBase64
     : `data:image/png;base64,${pngBase64}`
   try {
-    const res = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${config.openRouterKey}`,
-        "HTTP-Referer": "https://pilot.local",
-        "X-Title": "PILOT",
-      },
-      body: JSON.stringify({
+    const content = await openrouterContent(
+      config.openRouterKey,
+      {
         model,
         temperature: 0,
         response_format: { type: "json_object" },
@@ -91,12 +80,9 @@ export async function extractPage(
             ],
           },
         ],
-      }),
-    })
-    if (!res.ok) return null
-    const data = (await res.json()) as OpenAIResp
-    const content = data.choices?.[0]?.message?.content
-    if (!content) return null
+      },
+      { timeoutMs: 90_000, retries: 3 }
+    )
     const obj = parseJson(content) as ExtractedPage
     return { ...obj, sourcePage }
   } catch {
@@ -148,15 +134,9 @@ export async function extractDocChunk(
   const { config } = usePilotStore.getState()
   if (!config.openRouterKey) return null
   try {
-    const res = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${config.openRouterKey}`,
-        "HTTP-Referer": "https://pilot.local",
-        "X-Title": "PILOT",
-      },
-      body: JSON.stringify({
+    const content = await openrouterContent(
+      config.openRouterKey,
+      {
         model,
         temperature: 0,
         response_format: { type: "json_object" },
@@ -166,12 +146,9 @@ export async function extractDocChunk(
             content: `${DOC_EXTRACT_PROMPT}\n\nThis is section ${chunkIndex} of the document.\n\nDOCUMENT TEXT:\n${text.slice(0, 16000)}`,
           },
         ],
-      }),
-    })
-    if (!res.ok) return null
-    const data = (await res.json()) as OpenAIResp
-    const content = data.choices?.[0]?.message?.content
-    if (!content) return null
+      },
+      { timeoutMs: 90_000, retries: 3 }
+    )
     const obj = parseJson(content) as ExtractedPage
     return { ...obj, sourcePage: chunkIndex }
   } catch {
@@ -194,15 +171,9 @@ export async function extractSheet(
   const { config } = usePilotStore.getState()
   if (!config.openRouterKey) return null
   try {
-    const res = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${config.openRouterKey}`,
-        "HTTP-Referer": "https://pilot.local",
-        "X-Title": "PILOT",
-      },
-      body: JSON.stringify({
+    const content = await openrouterContent(
+      config.openRouterKey,
+      {
         model,
         temperature: 0,
         response_format: { type: "json_object" },
@@ -212,12 +183,9 @@ export async function extractSheet(
             content: `${SHEET_EXTRACT_PROMPT}\n\nSheet name: "${sheetName}". Sheet number: ${sheetIndex}.\n\nSHEET DATA (CSV):\n${csv.slice(0, 24000)}`,
           },
         ],
-      }),
-    })
-    if (!res.ok) return null
-    const data = (await res.json()) as OpenAIResp
-    const content = data.choices?.[0]?.message?.content
-    if (!content) return null
+      },
+      { timeoutMs: 90_000, retries: 3 }
+    )
     const obj = parseJson(content) as ExtractedPage
     // Deterministic unit cleanup: the model tends to inherit a "£k" column header
     // onto rows that aren't money (counts, per-unit values). Strip £k from those

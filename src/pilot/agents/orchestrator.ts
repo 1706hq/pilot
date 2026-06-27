@@ -10,13 +10,13 @@
 import { paintCanvas } from "~/pilot/agents/canvas"
 import { buildSystemPrompt } from "~/pilot/agents/personas"
 import { webSearch, formatSources } from "~/pilot/agents/web"
-import { retrieveContext } from "~/pilot/analyst/store"
+import { openrouterStream } from "~/pilot/agents/openrouter"
+import { retrieveContext, analysedCompanies } from "~/pilot/analyst/store"
 import { getContextText } from "~/pilot/storage/context"
 import { getModel } from "~/pilot/storage/config"
 import { usePilotStore } from "~/pilot/state/store"
 import type { AgentId, ChatMessage } from "~/pilot/types"
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 const MAX_TURNS = 5
 
 const TOOLS = [
@@ -115,7 +115,10 @@ export async function sendMessage(text: string, agentOverride?: AgentId) {
   // BLACKBOX: pull the verified, page-cited facts relevant to this question.
   const kbContext = retrieveContext(trimmed)
   const messages: ApiMessage[] = [
-    { role: "system", content: buildSystemPrompt(agent, getContextText(), kbContext) },
+    {
+      role: "system",
+      content: buildSystemPrompt(agent, getContextText(), kbContext, analysedCompanies()),
+    },
     ...toApiMessages(usePilotStore.getState().conversation),
   ]
 
@@ -142,30 +145,19 @@ export async function sendMessage(text: string, agentOverride?: AgentId) {
       // After two rounds of tools, force a final TEXT answer so the model can't
       // keep calling tools in a loop.
       const toolChoice = toolRounds >= 2 ? "none" : "auto"
-      const res = await fetch(OPENROUTER_URL, {
-        method: "POST",
-        signal: inFlight.signal,
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${config.openRouterKey}`,
-          "HTTP-Referer": "https://pilot.local",
-          "X-Title": "PILOT",
-        },
-        body: JSON.stringify({
+      const res = await openrouterStream(
+        config.openRouterKey,
+        {
           model: getModel(),
           messages,
           tools: TOOLS,
           tool_choice: toolChoice,
-          stream: true,
           temperature: 0.6,
-        }),
-      })
-      if (!res.ok || !res.body) {
-        const detail = await res.text().catch(() => "")
-        throw new Error(`OpenRouter ${res.status}: ${detail.slice(0, 200)}`)
-      }
+        },
+        inFlight.signal
+      )
 
-      const { content, toolCalls } = await consumeStream(res.body, (delta) =>
+      const { content, toolCalls } = await consumeStream(res.body!, (delta) =>
         usePilotStore.getState().appendToMessage(assistantId, delta)
       )
 
@@ -218,12 +210,20 @@ export async function sendMessage(text: string, agentOverride?: AgentId) {
     }
     usePilotStore.getState().updateMessage(assistantId, { streaming: false })
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err)
+    const aborted = err instanceof DOMException && err.name === "AbortError"
     const current = usePilotStore.getState().conversation.find((m) => m.id === assistantId)
-    usePilotStore.getState().updateMessage(assistantId, {
-      streaming: false,
-      content: current?.content || `⚠️ ${message}`,
-    })
+    if (aborted) {
+      // Superseded by a newer message — just stop streaming, keep whatever streamed.
+      usePilotStore.getState().updateMessage(assistantId, { streaming: false })
+    } else {
+      // Friendly, human fallback — Peter never sees a raw "OpenRouter 500".
+      usePilotStore.getState().updateMessage(assistantId, {
+        streaming: false,
+        content:
+          current?.content ||
+          "That didn't come through just now — the connection hiccuped. Give it another go and I'll have it.",
+      })
+    }
   } finally {
     usePilotStore.getState().setPilotState("idle")
     inFlight = null

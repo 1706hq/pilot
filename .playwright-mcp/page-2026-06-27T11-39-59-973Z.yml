@@ -1,0 +1,195 @@
+- generic [active] [ref=e1]:
+  - alert [ref=e2]
+  - main [ref=e3]:
+    - generic [ref=e5]:
+      - generic [ref=e7]:
+        - generic [ref=e8]: Crew
+        - generic [ref=e9]:
+          - generic [ref=e11]: S
+          - generic [ref=e13]: M
+        - generic [ref=e15]: Tasks
+        - generic [ref=e17]: Idle. The CREW is standing by.
+        - generic [ref=e18]:
+          - button "Add files to PILOT's context" [ref=e20]:
+            - img [ref=e22]
+          - button "Open settings" [ref=e24]:
+            - generic [ref=e25]:
+              - img [ref=e26]
+              - generic "Add your API keys to get started" [ref=e29]
+      - generic [ref=e31]:
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - generic: All systems green
+              - generic: ·
+              - generic: Sat 27 Jun
+              - generic: 12:39
+            - generic:
+              - generic:
+                - generic: FTSE
+                - generic: 8,214 ▲
+              - generic:
+                - generic: GBP/USD
+                - generic: 1.271 ▲
+              - generic:
+                - generic: Portfolio
+                - generic: ●
+        - generic:
+          - generic:
+            - generic:
+              - generic: P
+              - generic: .
+            - generic:
+              - generic: I
+              - generic: .
+            - generic:
+              - generic: L
+              - generic: .
+            - generic:
+              - generic: O
+              - generic: .
+            - generic:
+              - generic: T
+          - generic: Peter's Intelligent Life Operating Terminal
+        - generic [ref=e32]:
+          - generic:
+            - generic:
+              - img
+          - button "Start voice session" [ref=e33] [cursor=pointer]:
+            - generic:
+              - img
+        - generic [ref=e34]:
+          - heading "Good afternoon, Peter." [level=1] [ref=e35]
+          - paragraph [ref=e36]: The CREW's assembled and standing by.
+        - generic:
+          - generic:
+            - generic:
+              - generic: Radar
+              - generic "What PILOT is picking up across your business, from the analysed data": Picking up
+            - generic:
+              - generic:
+                - button "Turbulence Tap to explore Your strong margin is hiding a footfall collapse American Golf held margin at 42.2% and even grew ATV, so the P&L looks defended — but transactions fell ~28% and the real problem is people not walking in, not what they spend (p11, p4).":
+                  - generic:
+                    - generic: Turbulence
+                    - generic: Tap to explore
+                  - generic: Your strong margin is hiding a footfall collapse
+                  - paragraph: American Golf held margin at 42.2% and even grew ATV, so the P&L looks defended — but transactions fell ~28% and the real problem is people not walking in, not what they spend (p11, p4).
+              - generic:
+                - button "Turbulence Tap to explore The 2-year LFL says this is structural, not a bad week Week 19 looks like a blip, but the 2-year like-for-like is deeply negative while budget assumed strong growth — the gap is a structural demand issue the weekly number masks (p1).":
+                  - generic:
+                    - generic: Turbulence
+                    - generic: Tap to explore
+                  - generic: The 2-year LFL says this is structural, not a bad week
+                  - paragraph: Week 19 looks like a blip, but the 2-year like-for-like is deeply negative while budget assumed strong growth — the gap is a structural demand issue the weekly number masks (p1).
+              - generic:
+                - button "Tailwind Tap to explore Ecommerce is quietly outrunning the stores Web margin rate is up ~2.8pts year on year and L4W web category sales are well up, while stores struggle — the channel mix is shifting and may be under-backed (p56, p57).":
+                  - generic:
+                    - generic: Tailwind
+                    - generic: Tap to explore
+                  - generic: Ecommerce is quietly outrunning the stores
+                  - paragraph: Web margin rate is up ~2.8pts year on year and L4W web category sales are well up, while stores struggle — the channel mix is shifting and may be under-backed (p56, p57).
+              - generic:
+                - button "Signal Tap to explore A £1.7m run-rate risk concentrated in Clubs The next-6-weeks run rate flags about £1.7m of sales risk, with roughly £1.06m of it sitting in Clubs alone (Custom, Irons, Woods) — one category is carrying most of the exposure (p14, p15).":
+                  - generic:
+                    - generic: Signal
+                    - generic: Tap to explore
+                  - generic: A £1.7m run-rate risk concentrated in Clubs
+                  - paragraph: The next-6-weeks run rate flags about £1.7m of sales risk, with roughly £1.06m of it sitting in Clubs alone (Custom, Irons, Woods) — one category is carrying most of the exposure (p14, p15).
+              - generic:
+                - button "Turbulence Tap to explore Delivery complaints are a margin risk in disguise TrustScore is steady at 4.7, but the negative reviews cluster on delivery delays and stock — the kind of friction that quietly raises customer-service cost and dents repeat purchase (p19, p20).":
+                  - generic:
+                    - generic: Turbulence
+                    - generic: Tap to explore
+                  - generic: Delivery complaints are a margin risk in disguise
+                  - paragraph: TrustScore is steady at 4.7, but the negative reviews cluster on delivery delays and stock — the kind of friction that quietly raises customer-service cost and dents repeat purchase (p19, p20).
+              - generic:
+                - button "Signal Tap to explore Two new stores are dragging the opening programme Blanchardstown is ~65% and Go Northampton ~54% behind target year-to-date, while Chichester runs ahead — the average hides two very different stories worth separating (p16, p93, p94).":
+                  - generic:
+                    - generic: Signal
+                    - generic: Tap to explore
+                  - generic: Two new stores are dragging the opening programme
+                  - paragraph: Blanchardstown is ~65% and Go Northampton ~54% behind target year-to-date, while Chichester runs ahead — the average hides two very different stories worth separating (p16, p93, p94).
+              - generic:
+                - button "What needs my decision today?"
+                - button "Biggest risk this week"
+                - button "How's cash looking?"
+                - button "Where are we winning?"
+        - generic [ref=e42]:
+          - generic [ref=e44]:
+            - textbox [ref=e45]
+            - generic:
+              - paragraph: Ask PILOT anything…
+          - generic [ref=e46]:
+            - button "Start voice session" [ref=e47]:
+              - img [ref=e48]
+            - button "Add files to PILOT's context" [ref=e51]:
+              - img [ref=e52]
+            - button "Send prompt" [disabled] [ref=e54]:
+              - img [ref=e55]
+      - img [ref=e60]
+    - generic [ref=e64]:
+      - generic [ref=e65]:
+        - generic [ref=e66]:
+          - heading "Settings" [level=2] [ref=e67]
+          - paragraph [ref=e68]: Your keys are saved on this device only — never uploaded or shared.
+        - button "Close settings" [ref=e69]:
+          - img [ref=e70]
+      - generic [ref=e72]:
+        - generic [ref=e73]:
+          - generic [ref=e74]:
+            - generic [ref=e75]: OpenRouter API key
+            - generic [ref=e76]: for chat + canvas
+          - generic [ref=e77]:
+            - textbox "OpenRouter API key for chat + canvas Show" [ref=e78]:
+              - /placeholder: sk-or-…
+            - button "Show" [ref=e79]:
+              - img [ref=e80]
+        - generic [ref=e83]:
+          - generic [ref=e84]:
+            - generic [ref=e85]: ElevenLabs API key
+            - generic [ref=e86]: for voice
+          - generic [ref=e87]:
+            - textbox "ElevenLabs API key for voice Show" [ref=e88]:
+              - /placeholder: sk_…
+            - button "Show" [ref=e89]:
+              - img [ref=e90]
+        - generic [ref=e93]:
+          - generic [ref=e94]:
+            - generic [ref=e95]: ElevenLabs Agent ID
+            - generic [ref=e96]: prefilled — leave as-is
+          - textbox "ElevenLabs Agent ID prefilled — leave as-is" [ref=e98]:
+            - /placeholder: agent_5801kvdenajhens9ppvp0xvyd8yp
+            - text: agent_5801kvdenajhens9ppvp0xvyd8yp
+        - generic [ref=e99]:
+          - generic [ref=e100]:
+            - generic [ref=e101]: Model
+            - generic [ref=e102]: OpenRouter model id
+          - textbox "Model OpenRouter model id" [ref=e104]:
+            - /placeholder: google/gemini-3.5-flash
+            - text: google/gemini-3.5-flash
+        - paragraph [ref=e105]: Get an OpenRouter key at openrouter.ai/keys and an ElevenLabs key in your ElevenLabs profile. PILOT talks to those services directly from this Mac.
+        - generic [ref=e106]:
+          - generic [ref=e107]: Sync across devices (optional)
+          - generic [ref=e108]:
+            - generic [ref=e109]:
+              - generic [ref=e110]:
+                - generic [ref=e111]: Sync store URL
+                - generic [ref=e112]: so you upload once
+              - textbox "Sync store URL so you upload once" [ref=e114]:
+                - /placeholder: https://…
+                - text: https://pilot-sync-api.vercel.app/api/sync
+            - generic [ref=e115]:
+              - generic [ref=e117]: Sync token
+              - generic [ref=e118]:
+                - textbox "Sync token Show" [ref=e119]:
+                  - /placeholder: secret token
+                  - text: 8ba5b4f54c315351bc96cef2063c305867893d7ea13dd5d4
+                - button "Show" [ref=e120]:
+                  - img [ref=e121]
+            - paragraph [ref=e124]: Set the same store on each device and your analysed data stays in sync, so a report you add on one shows up on the others. Leave blank to keep everything only on this device.
+      - generic [ref=e125]:
+        - button "Test keys" [ref=e126]
+        - generic [ref=e127]:
+          - button "Cancel" [ref=e128]
+          - button "Save" [ref=e129]

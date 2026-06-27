@@ -9,13 +9,12 @@
 
 import { retrieveContext } from "~/pilot/analyst/store"
 import { webSearch } from "~/pilot/agents/web"
+import { openrouterContent } from "~/pilot/agents/openrouter"
 import { getModel } from "~/pilot/storage/config"
 import { getContextText } from "~/pilot/storage/context"
 import { usePilotStore } from "~/pilot/state/store"
 import type { AgentId } from "~/pilot/types"
 import type { WidgetBody } from "~/pilot/widgets/types"
-
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 function today(): string {
   return new Date().toLocaleDateString("en-GB", {
@@ -73,10 +72,6 @@ quantity and unitPrice MUST be numbers. Use the amounts and client the user give
 Pre-format stat values as strings ("£1.2M","43.5%"). Make it specific to the intent.${grounding}
 
 Output ONLY the JSON object.`
-}
-
-interface OpenAIResp {
-  choices?: { message?: { content?: string } }[]
 }
 
 function stripFences(text: string): string {
@@ -162,15 +157,9 @@ export async function generateCanvas(
     // dashboards of the analysed packs work), plus any raw uploaded text.
     const kbText = retrieveContext(intent, 30)
     const contextText = getContextText(6000)
-    const res = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${config.openRouterKey}`,
-        "HTTP-Referer": "https://pilot.local",
-        "X-Title": "PILOT",
-      },
-      body: JSON.stringify({
+    const content = await openrouterContent(
+      config.openRouterKey,
+      {
         model: getModel(),
         messages: [
           { role: "system", content: schemaPrompt(contextText, kbText) },
@@ -179,12 +168,9 @@ export async function generateCanvas(
         response_format: { type: "json_object" },
         // Low temperature: when grounding in real figures, drift is the enemy.
         temperature: 0.2,
-      }),
-    })
-    if (!res.ok) return null
-    const data = (await res.json()) as OpenAIResp
-    const content = data.choices?.[0]?.message?.content
-    if (!content) return null
+      },
+      { timeoutMs: 90_000, retries: 3 }
+    )
     const parsed = JSON.parse(stripFences(content)) as Record<string, unknown>
     const body = coerce(parsed)
     if (!body) return null

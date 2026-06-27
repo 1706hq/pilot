@@ -23,7 +23,7 @@ import { usePilotStore } from "~/pilot/state/store"
 import { glowVisual } from "~/pilot/state/visuals"
 import { initConfig } from "~/pilot/storage/config"
 import { initContext } from "~/pilot/storage/context"
-import { pickGreeting, type Greeting } from "~/pilot/voice/greetings"
+import { pickGreeting, timeGreeting, type Greeting } from "~/pilot/voice/greetings"
 import { useLaunch } from "~/pilot/launch/useLaunch"
 import { UpdatePrompt } from "~/pilot/update/UpdatePrompt"
 import { UploadStatus } from "~/components/home/upload-status"
@@ -52,6 +52,29 @@ export default function Home() {
     }
     // Pull any analysis done on his other devices (no-op if sync isn't set up).
     void import("~/pilot/sync/sync").then((m) => m.syncKnowledge())
+  }, [])
+
+  // Keep the on-screen salutation honest to the time of day. Peter leaves PILOT
+  // open for hours, so a greeting picked once at launch reads "Good morning" all
+  // evening. Refresh the time word on focus, on tab-visibility and on a slow
+  // tick — keeping the lead-in stable so the line doesn't churn.
+  useEffect(() => {
+    const sync = () =>
+      setGreeting((g) => {
+        const title = timeGreeting()
+        return g.title === title ? g : { ...g, title }
+      })
+    const onVis = () => {
+      if (!document.hidden) sync()
+    }
+    window.addEventListener("focus", sync)
+    document.addEventListener("visibilitychange", onVis)
+    const id = setInterval(sync, 60_000)
+    return () => {
+      window.removeEventListener("focus", sync)
+      document.removeEventListener("visibilitychange", onVis)
+      clearInterval(id)
+    }
   }, [])
 
   return (
@@ -204,7 +227,12 @@ function HomeView({ greeting, phase }: { greeting: Greeting; phase: number }) {
           "absolute grid place-items-center transition-all duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)]",
           chatting
             ? "left-1/2 top-[64px] size-28 -translate-x-1/2"
-            : "left-1/2 top-[25%] size-44 -translate-x-1/2 -translate-y-1/2 min-[1100px]:left-[33%] min-[1100px]:top-[44%] min-[1100px]:size-56",
+            : // Resting. Narrow: centred-upper, stacked above the greeting + radar.
+              // Wide (>=1280, where there's room for a right-hand radar column WITHOUT
+              // the centred wordmark clipping it): the orb is the hero — large and
+              // centred in the space to the LEFT of the radar column via calc, so it
+              // stays centred at any width and scales up further on a full screen.
+              "left-1/2 top-[26%] size-52 -translate-x-1/2 -translate-y-1/2 min-[1280px]:left-[calc(50%-230px)] min-[1280px]:top-[43%] min-[1280px]:size-[17rem] min-[1600px]:size-[20rem]",
           phase >= 2 ? "opacity-100" : "opacity-0"
         )}
       >
@@ -231,7 +259,7 @@ function HomeView({ greeting, phase }: { greeting: Greeting; phase: number }) {
           under the orb in the left column (wide), clear of the radar rings. */}
       <div
         className={cn(
-          "absolute left-1/2 top-[42%] w-full max-w-[680px] -translate-x-1/2 px-6 text-center transition-opacity duration-[900ms] min-[1100px]:left-[33%] min-[1100px]:top-[66%] min-[1100px]:max-w-[440px]",
+          "absolute left-1/2 top-[44%] w-full max-w-[680px] -translate-x-1/2 px-6 text-center transition-opacity duration-[900ms] min-[1280px]:left-[calc(50%-230px)] min-[1280px]:top-[68%] min-[1280px]:max-w-[460px]",
           !chatting && phase >= 3 ? "opacity-100" : "opacity-0"
         )}
       >
@@ -247,7 +275,7 @@ function HomeView({ greeting, phase }: { greeting: Greeting; phase: number }) {
           wide it pivots to a column on the right (landscape). Hidden once chatting. */}
       <div
         className={cn(
-          "absolute left-1/2 bottom-[120px] top-[55%] w-[min(calc(100%-48px),600px)] -translate-x-1/2 transition-opacity duration-[900ms] min-[1100px]:left-auto min-[1100px]:right-8 min-[1100px]:top-[96px] min-[1100px]:bottom-[104px] min-[1100px]:w-[420px] min-[1100px]:translate-x-0",
+          "absolute left-1/2 bottom-[120px] top-[58%] w-[min(calc(100%-48px),600px)] -translate-x-1/2 transition-opacity duration-[900ms] min-[1280px]:left-auto min-[1280px]:right-8 min-[1280px]:top-[92px] min-[1280px]:bottom-[104px] min-[1280px]:w-[420px] min-[1280px]:translate-x-0",
           !chatting && phase >= 3
             ? "opacity-100"
             : "pointer-events-none opacity-0"

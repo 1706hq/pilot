@@ -78,6 +78,43 @@ function cites(c: number[] | undefined): string {
   return c && c.length ? ` (p${c.join(", p")})` : ""
 }
 
+/**
+ * Known portfolio companies (+ aliases). Used so a question about a company
+ * Peter owns but we HAVEN'T analysed never gets answered with a DIFFERENT
+ * company's figures — the single biggest cause of "PILOT gave me wrong data on
+ * another portfolio company". Aliases are kept unambiguous (no short fragments
+ * that collide with ordinary words).
+ */
+const PORTFOLIO: { name: string; aliases: string[] }[] = [
+  { name: "American Golf", aliases: ["american golf", "agt"] },
+  { name: "Jessops", aliases: ["jessops", "jessop"] },
+  { name: "Levi Roots", aliases: ["levi roots", "reggae reggae"] },
+  { name: "Gener8", aliases: ["gener8"] },
+  { name: "Red Letter Days", aliases: ["red letter days"] },
+  { name: "Data Select", aliases: ["data select"] },
+  { name: "Hanna Sillitoe", aliases: ["hanna sillitoe"] },
+  { name: "Botanycl", aliases: ["botanycl"] },
+  { name: "Hope & Ivy", aliases: ["hope & ivy", "hope and ivy"] },
+  { name: "Full Power Cacao", aliases: ["full power cacao"] },
+  { name: "Tiny Box", aliases: ["tiny box", "tinybox"] },
+  { name: "Phones International", aliases: ["phones international"] },
+]
+
+/** Canonical names of the portfolio companies the query explicitly names. */
+function companiesInQuery(query: string): Set<string> {
+  const l = query.toLowerCase()
+  const hits = new Set<string>()
+  for (const c of PORTFOLIO) {
+    if (c.aliases.some((a) => l.includes(a))) hits.add(c.name.toLowerCase())
+  }
+  return hits
+}
+
+/** Distinct company names that BLACKBOX actually has analysed data for. */
+export function analysedCompanies(): string[] {
+  return Array.from(new Set(listKnowledgeBases().map((kb) => kb.company)))
+}
+
 function fmt(r: LedgerRecord): string {
   const p: string[] = [`${r.value}${r.unit ?? ""}`]
   if (r.bud !== undefined) p.push(`bud ${r.bud}`)
@@ -95,6 +132,15 @@ function fmt(r: LedgerRecord): string {
 export function retrieveContext(query: string, maxRecords = 40): string {
   const kbs = listKnowledgeBases()
   if (kbs.length === 0) return ""
+  // Company scoping: if Peter names specific companies, only surface KBs for
+  // those — so a question about a company we have no data for returns nothing
+  // (PILOT then says it doesn't have it) rather than bleeding American Golf's
+  // numbers into the answer. No company named → behave as before (all KBs).
+  const named = companiesInQuery(query)
+  const scoped = named.size
+    ? kbs.filter((kb) => named.has(kb.company.toLowerCase()))
+    : kbs
+  if (scoped.length === 0) return ""
   const q = query.toLowerCase()
   const terms = q.split(/[^a-z0-9%]+/).filter((t) => t.length > 2)
   const score = (s: string) => {
@@ -103,7 +149,7 @@ export function retrieveContext(query: string, maxRecords = 40): string {
   }
 
   const blocks: string[] = []
-  for (const kb of kbs) {
+  for (const kb of scoped) {
     const ranked = kb.ledger
       .map((r) => ({ r, s: score(`${r.metric} ${r.dimension} ${r.grain} ${r.table ?? ""}`) }))
       .sort((a, b) => b.s - a.s)
