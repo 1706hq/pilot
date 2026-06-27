@@ -75,6 +75,14 @@ export default function Home() {
         )}
       />
 
+      {/* Draggable top strip — lets Peter move the window like any mac app by
+          dragging the top bar. Inset so the traffic lights (left) and the menu
+          (right) stay clickable; sits under the pointer-events-none HUD. */}
+      <div
+        data-tauri-drag-region
+        className="absolute left-[92px] right-[56px] top-0 z-20 h-12"
+      />
+
       <div className="absolute inset-0 z-10 flex h-full">
         <div className={cn("z-20 h-full", reveal(phase >= 3))}>
           <AgentsSidebar />
@@ -182,20 +190,24 @@ function HomeView({ greeting, phase }: { greeting: Greeting; phase: number }) {
 
       {/* Orb stage — the radar sweep and idle heartbeat sit BEHIND the orb and
           share its centre, shrinking together once a conversation begins. Click
-          the orb to start / stop a voice session. */}
+          the orb to start / stop a voice session.
+          Resting: centred-upper on narrow; on wide it sits in the left half so
+          the RADAR panel can pivot to a column on the right (landscape). */}
       <div
         className={cn(
-          "absolute left-1/2 grid -translate-x-1/2 place-items-center transition-all duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)]",
-          chatting ? "top-[64px] size-28" : "top-[33%] size-56 -translate-y-1/2",
+          "absolute grid place-items-center transition-all duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)]",
+          chatting
+            ? "left-1/2 top-[64px] size-28 -translate-x-1/2"
+            : "left-1/2 top-[25%] size-44 -translate-x-1/2 -translate-y-1/2 min-[1100px]:left-[33%] min-[1100px]:top-[44%] min-[1100px]:size-56",
           phase >= 2 ? "opacity-100" : "opacity-0"
         )}
       >
-        {/* Radar — larger than the orb so its rings frame it; it becomes the
-            hero "watching" element on the resting screen. */}
+        {/* Radar — frames the orb. Kept contained so its rings never bleed into
+            the greeting above or the readings below. */}
         <Radar
           className={cn(
             "absolute left-1/2 top-1/2 aspect-square -translate-x-1/2 -translate-y-1/2",
-            chatting ? "w-[185%]" : "w-[215%]"
+            chatting ? "w-[150%]" : "w-[142%]"
           )}
         />
 
@@ -209,28 +221,27 @@ function HomeView({ greeting, phase }: { greeting: Greeting; phase: number }) {
         </button>
       </div>
 
-      {/* Greeting — only on the empty home state, revealed last. Sits up top,
-          above the orb, so the brief has room beneath. */}
+      {/* Greeting — empty home state only. Sits just BELOW the orb (narrow) or
+          under the orb in the left column (wide), clear of the radar rings. */}
       <div
         className={cn(
-          "absolute left-1/2 top-[clamp(78px,9vh,140px)] w-full max-w-[760px] -translate-x-1/2 px-6 text-center transition-opacity duration-[900ms]",
+          "absolute left-1/2 top-[42%] w-full max-w-[680px] -translate-x-1/2 px-6 text-center transition-opacity duration-[900ms] min-[1100px]:left-[33%] min-[1100px]:top-[66%] min-[1100px]:max-w-[440px]",
           !chatting && phase >= 3 ? "opacity-100" : "opacity-0"
         )}
       >
-        <h1 className="text-[clamp(26px,3vw,46px)] font-semibold leading-[1.0] tracking-tight text-white drop-shadow-[0_18px_42px_rgba(0,0,0,0.28)]">
+        <h1 className="text-[clamp(24px,2.6vw,42px)] font-semibold leading-[1.0] tracking-tight text-white drop-shadow-[0_18px_42px_rgba(0,0,0,0.28)]">
           {greeting.title}
         </h1>
-        <p className="mt-3 text-[clamp(13px,1.4vw,18px)] font-normal text-white/55">
+        <p className="mt-3 text-[clamp(13px,1.3vw,17px)] font-normal text-white/55">
           {greeting.lead}
         </p>
       </div>
 
-      {/* RADAR — proactive intelligence below the orb on the resting screen:
-          turbulence, tailwinds and signals across the data, tappable to explore.
-          Hidden once chatting. */}
+      {/* RADAR — proactive intelligence. Stacks below the greeting on narrow; on
+          wide it pivots to a column on the right (landscape). Hidden once chatting. */}
       <div
         className={cn(
-          "absolute left-1/2 bottom-[128px] top-[49%] w-[min(calc(100%-48px),620px)] -translate-x-1/2 transition-opacity duration-[900ms]",
+          "absolute left-1/2 bottom-[120px] top-[55%] w-[min(calc(100%-48px),600px)] -translate-x-1/2 transition-opacity duration-[900ms] min-[1100px]:left-auto min-[1100px]:right-8 min-[1100px]:top-[96px] min-[1100px]:bottom-[104px] min-[1100px]:w-[420px] min-[1100px]:translate-x-0",
           !chatting && phase >= 3
             ? "opacity-100"
             : "pointer-events-none opacity-0"

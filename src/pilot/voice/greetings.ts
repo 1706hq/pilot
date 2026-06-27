@@ -47,19 +47,15 @@ const LEAD_INS = [
   "The CREW's assembled and standing by.",
 ]
 
+// Restrained ready-and-wait openers. PILOT greets, then STOPS and waits — it
+// never volunteers a briefing or company data on connect (Peter's request).
 const VOICE_OPENERS = [
-  "There you are, Peter. I've already done the boring bits.",
-  "{time}, Peter. The markets behaved themselves overnight — mostly.",
-  "Good to see you. Shall we go and make someone some money?",
-  "Right then — what are we conquering today?",
-  "{time}, Peter. Coffee first, or shall I just dive in?",
-  "Back in the chair, I see. The CREW's been busy while you were gone.",
-  "{time}. I'd say the day looks quiet, but I've learned not to jinx it.",
-  "There's Peter. American Golf's behaving itself; the rest, we'll see.",
-  "{time}, Peter. One thing genuinely needs you — the rest I've handled.",
-  "Welcome back, Peter. I've read everything so you don't have to.",
-  "{time}, Peter. Nothing's on fire. Yet.",
-  "Good to see you. Give me the word and I'll point the CREW at it.",
+  "All agents are ready and waiting, Peter. Just let me know what you need.",
+  "PILOT here. The CREW's standing by whenever you want them.",
+  "{time}, Peter. Everyone's ready and waiting. Your call.",
+  "Ready when you are, Peter. Tell me what you need.",
+  "All set and standing by, Peter. What can I get you?",
+  "{time}, Peter. Standing by. Say the word.",
 ]
 
 function resolve(template: string): string {
