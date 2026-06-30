@@ -2,6 +2,14 @@
 
 Notes for the team on what shipped in each release. Newest first.
 
+## v0.4.1 — hotfix: restore data retrieval (regression in v0.4.0)
+
+v0.4.0's new company scoping had a matching bug that made PILOT act as if it had no data. When a question named a company we DO hold (e.g. "how is American Golf doing?"), the scope filter compared the canonical name "american golf" against the stored company field "American Golf (AGT)" with an exact match, which never matched, so it filtered the data out and PILOT said it had nothing. Any query naming American Golf (and any freshly uploaded company, once named) hit this.
+
+- **Fix**: both the query and each KB's company field now resolve through the same `canonicalCompany` mapping (alias + substring), so "American Golf (AGT)" and "how's American Golf?" both resolve to the same company and match.
+- The original guard is intact: a company we genuinely have no data for (e.g. Jessops) still correctly returns nothing, so PILOT says it doesn't have the latest rather than borrowing another company's figures.
+- Verified against the real seed: American Golf and the AGT alias return data, Jessops returns none, a generic summary returns everything. Fixes chat and voice (both share this retrieval).
+
 ## v0.4.0 — reliability, accuracy + HUD (Peter's 27 Jun feedback)
 
 The big one. Addresses Peter's 27 June notes end to end, plus the mobile/web and sync groundwork.

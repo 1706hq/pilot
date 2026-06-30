@@ -100,12 +100,32 @@ const PORTFOLIO: { name: string; aliases: string[] }[] = [
   { name: "Phones International", aliases: ["phones international"] },
 ]
 
+/**
+ * Map any text (a query OR a KB's company field) to the canonical portfolio
+ * name it refers to, or null. Both sides MUST go through this so they match:
+ * a KB stored as "American Golf (AGT)" and a question "how's American Golf?"
+ * both resolve to "american golf". (Earlier this compared the canonical name to
+ * the raw KB company string, so "american golf" never equalled "american golf
+ * (agt)" and the KB was wrongly filtered out — PILOT then claimed no data.)
+ */
+function canonicalCompany(text: string): string | null {
+  const l = text.toLowerCase()
+  for (const c of PORTFOLIO) {
+    if (l.includes(c.name.toLowerCase()) || c.aliases.some((a) => l.includes(a))) {
+      return c.name.toLowerCase()
+    }
+  }
+  return null
+}
+
 /** Canonical names of the portfolio companies the query explicitly names. */
 function companiesInQuery(query: string): Set<string> {
   const l = query.toLowerCase()
   const hits = new Set<string>()
   for (const c of PORTFOLIO) {
-    if (c.aliases.some((a) => l.includes(a))) hits.add(c.name.toLowerCase())
+    if (l.includes(c.name.toLowerCase()) || c.aliases.some((a) => l.includes(a))) {
+      hits.add(c.name.toLowerCase())
+    }
   }
   return hits
 }
@@ -138,7 +158,13 @@ export function retrieveContext(query: string, maxRecords = 40): string {
   // numbers into the answer. No company named → behave as before (all KBs).
   const named = companiesInQuery(query)
   const scoped = named.size
-    ? kbs.filter((kb) => named.has(kb.company.toLowerCase()))
+    ? kbs.filter((kb) => {
+        const canon = canonicalCompany(kb.company)
+        // Keep a KB if it resolves to a named company. A KB whose company isn't
+        // in the portfolio list (canon === null) is kept too, so an uploaded
+        // company we don't recognise is never silently hidden.
+        return canon === null || named.has(canon)
+      })
     : kbs
   if (scoped.length === 0) return ""
   const q = query.toLowerCase()
