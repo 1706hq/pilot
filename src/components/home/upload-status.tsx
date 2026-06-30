@@ -30,7 +30,9 @@ function statusLine(ing: Ingest): string {
     case "analysing":
       return "Pulling out the insights…"
     case "ready":
-      return `Ready. ${ing.figures ?? 0} figures pulled. Ask me anything about ${ing.company}.`
+      return ing.missed && ing.missed > 0
+        ? `Ready. ${ing.figures ?? 0} figures pulled, but ${ing.missed} part${ing.missed > 1 ? "s" : ""} couldn't be read. Ask me about ${ing.company}.`
+        : `Ready. ${ing.figures ?? 0} figures pulled. Ask me anything about ${ing.company}.`
     case "error":
       return "Couldn't read this one. Try uploading it again."
   }

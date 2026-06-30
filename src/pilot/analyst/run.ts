@@ -15,7 +15,7 @@ import { renderPdfToPages } from "~/pilot/analyst/render"
 import { saveKnowledgeBase } from "~/pilot/analyst/store"
 import { reconcile } from "~/pilot/analyst/verify"
 import { usePilotStore } from "~/pilot/state/store"
-import type { ExtractedPage, KnowledgeBase } from "~/pilot/analyst/types"
+import type { AuditFlag, ExtractedPage, KnowledgeBase } from "~/pilot/analyst/types"
 
 const EXTRACT_CONCURRENCY = 4
 
@@ -32,6 +32,34 @@ async function pool<T, R>(items: T[], n: number, fn: (item: T, i: number) => Pro
     })
   )
   return out
+}
+
+/**
+ * Serialise whole-document ingests. Each document already extracts its pages at
+ * EXTRACT_CONCURRENCY internally; running several documents at once on top of
+ * that fires dozens of concurrent vision calls and triggers rate-limit (429)
+ * storms that look like "uploads are broken". This queue runs one document at a
+ * time so dropping a folder of files is reliable, just sequential.
+ */
+let ingestChain: Promise<unknown> = Promise.resolve()
+export function enqueueIngest<T>(job: () => Promise<T>): Promise<T> {
+  const run = ingestChain.then(job, job)
+  ingestChain = run.catch(() => undefined)
+  return run
+}
+
+/** A flag noting pages/sheets/sections that could not be read, so partial data
+ *  is never silently presented as complete. */
+function coverageFlag(missed: number, total: number, unit: string): AuditFlag[] {
+  if (missed <= 0) return []
+  return [
+    {
+      sourcePage: 0,
+      field: "coverage",
+      issue: `${missed} of ${total} ${unit} could not be read — figures from them are missing`,
+      confidence: 0.3,
+    },
+  ]
 }
 
 export interface IngestMeta {
@@ -111,6 +139,7 @@ export async function ingestDocument(file: File, meta: IngestMeta): Promise<Know
       })
     ).filter((p): p is ExtractedPage => Boolean(p))
     if (pages.length === 0) throw new Error("could not read any pages")
+    const missed = images.length - pages.length
 
     // Stage 2 — audit / reconcile.
     setLabel("BLACKBOX · auditing the numbers")
@@ -140,7 +169,7 @@ export async function ingestDocument(file: File, meta: IngestMeta): Promise<Know
       summary: final.summary,
       insights: final.insights,
       qa: final.qa,
-      flags: [...rec.flags, ...validation.flags],
+      flags: [...rec.flags, ...validation.flags, ...coverageFlag(missed, images.length, "pages")],
       builtAt: Date.now(),
     }
     saveKnowledgeBase(kb)
@@ -150,11 +179,11 @@ export async function ingestDocument(file: File, meta: IngestMeta): Promise<Know
       status: "done",
       label: `BLACKBOX · ${meta.company} ready (${rec.passed}/${rec.checks} reconciled)`,
     })
-    setIngest({ phase: "ready", figures: kb.ledger.length, readyAt: Date.now() })
+    setIngest({ phase: "ready", figures: kb.ledger.length, missed, readyAt: Date.now() })
     usePilotStore
       .getState()
       .setNotice(
-        `Analysed ${meta.company}: ${kb.ledger.length} figures, ${kb.insights.length} insights, ${rec.flags.length} flags.`
+        `Analysed ${meta.company}: ${kb.ledger.length} figures, ${kb.insights.length} insights${missed > 0 ? `. ${missed} of ${images.length} pages couldn't be read` : ""}.`
       )
     return kb
   } catch (e) {
@@ -219,6 +248,7 @@ export async function ingestSpreadsheet(
       })
     ).filter((p): p is ExtractedPage => Boolean(p))
     if (pages.length === 0) throw new Error("could not read the figures")
+    const missed = sheets.length - pages.length
 
     // Stages 2-6 — identical to the PDF path.
     setLabel("BLACKBOX · auditing the numbers")
@@ -243,7 +273,7 @@ export async function ingestSpreadsheet(
       summary: final.summary,
       insights: final.insights,
       qa: final.qa,
-      flags: [...rec.flags, ...validation.flags],
+      flags: [...rec.flags, ...validation.flags, ...coverageFlag(missed, sheets.length, "sheets")],
       builtAt: Date.now(),
     }
     saveKnowledgeBase(kb)
@@ -253,11 +283,11 @@ export async function ingestSpreadsheet(
       status: "done",
       label: `BLACKBOX · ${meta.company} ready (${kb.ledger.length} figures)`,
     })
-    setIngest({ phase: "ready", figures: kb.ledger.length, readyAt: Date.now() })
+    setIngest({ phase: "ready", figures: kb.ledger.length, missed, readyAt: Date.now() })
     usePilotStore
       .getState()
       .setNotice(
-        `${meta.company} is analysed and ready: ${kb.ledger.length} figures, ${kb.insights.length} insights.`
+        `${meta.company} is analysed and ready: ${kb.ledger.length} figures, ${kb.insights.length} insights${missed > 0 ? `. ${missed} of ${sheets.length} sheets couldn't be read` : ""}.`
       )
     return kb
   } catch (e) {
@@ -344,6 +374,7 @@ export async function ingestTextDocument(
       })
     ).filter((p): p is ExtractedPage => Boolean(p))
     if (pages.length === 0) throw new Error("could not read the document")
+    const missed = chunks.length - pages.length
 
     setLabel("BLACKBOX · auditing the numbers")
     setIngest({ phase: "auditing" })
@@ -367,7 +398,7 @@ export async function ingestTextDocument(
       summary: final.summary,
       insights: final.insights,
       qa: final.qa,
-      flags: [...rec.flags, ...validation.flags],
+      flags: [...rec.flags, ...validation.flags, ...coverageFlag(missed, chunks.length, "sections")],
       builtAt: Date.now(),
     }
     saveKnowledgeBase(kb)
@@ -377,11 +408,11 @@ export async function ingestTextDocument(
       status: "done",
       label: `BLACKBOX · ${meta.company} ready (${kb.ledger.length} figures)`,
     })
-    setIngest({ phase: "ready", figures: kb.ledger.length, readyAt: Date.now() })
+    setIngest({ phase: "ready", figures: kb.ledger.length, missed, readyAt: Date.now() })
     usePilotStore
       .getState()
       .setNotice(
-        `${meta.company} is analysed and ready: ${kb.insights.length} insights, ${kb.ledger.length} figures.`
+        `${meta.company} is analysed and ready: ${kb.insights.length} insights, ${kb.ledger.length} figures${missed > 0 ? `. ${missed} of ${chunks.length} sections couldn't be read` : ""}.`
       )
     return kb
   } catch (e) {

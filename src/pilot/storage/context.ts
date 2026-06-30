@@ -44,8 +44,8 @@ interface StoredFile {
 /** Result of trying to ingest one file, returned to the UI for confirmation. */
 export interface AddedFile {
   name: string
-  /** "image"/"toolarge" = rejected; "error" = failed; "analysing" = queued for BLACKBOX; otherwise the read status. */
-  outcome: ContextFileStatus | "image" | "error" | "analysing" | "toolarge"
+  /** "image"/"toolarge"/"unsupported" = rejected; "error" = failed; "analysing" = queued for BLACKBOX; otherwise the read status. */
+  outcome: ContextFileStatus | "image" | "error" | "analysing" | "toolarge" | "unsupported"
 }
 
 function readAll(): StoredFile[] {
@@ -228,6 +228,11 @@ export async function addContextFiles(
       docQueue.push(file)
       status = "extracted"
       outcome = "analysing"
+    } else if (/\.doc$/i.test(file.name)) {
+      // Legacy Word (.doc) can't be read in the browser (mammoth only does .docx).
+      // Say so clearly rather than silently storing it name-only.
+      status = "binary"
+      outcome = "unsupported"
     } else if (isTextLike(file)) {
       try {
         text = (await file.text()).slice(0, PER_FILE_CHARS)
@@ -275,35 +280,36 @@ export async function addContextFiles(
   // Kick off BLACKBOX for each PDF as a background job (render → extract → audit
   // → consolidate → analyse → store). Long-running; progress shows in the Tasks
   // feed. Dynamically imported so pdf.js only loads when a PDF is ingested.
+  // All ingests go through enqueueIngest so a folder of files runs one document
+  // at a time (each still extracts its pages concurrently internally) instead of
+  // firing dozens of vision calls at once and tripping rate limits.
   for (const pdf of pdfQueue) {
-    void import("~/pilot/analyst/run").then(({ ingestDocument }) =>
-      ingestDocument(pdf, {
-        docId: pdf.name,
-        company: deriveCompany(pdf.name),
-        period: "",
-      })
+    void import("~/pilot/analyst/run").then(({ ingestDocument, enqueueIngest }) =>
+      enqueueIngest(() =>
+        ingestDocument(pdf, { docId: pdf.name, company: deriveCompany(pdf.name), period: "" })
+      )
     )
   }
 
   // Spreadsheets run the same pipeline via a sheet-aware path.
   for (const sheet of sheetQueue) {
-    void import("~/pilot/analyst/run").then(({ ingestSpreadsheet }) =>
-      ingestSpreadsheet(sheet, {
-        docId: sheet.name,
-        company: deriveCompany(sheet.name),
-        period: "",
-      })
+    void import("~/pilot/analyst/run").then(({ ingestSpreadsheet, enqueueIngest }) =>
+      enqueueIngest(() =>
+        ingestSpreadsheet(sheet, {
+          docId: sheet.name,
+          company: deriveCompany(sheet.name),
+          period: "",
+        })
+      )
     )
   }
 
   // Word documents run the same pipeline via a text-aware path.
   for (const doc of docQueue) {
-    void import("~/pilot/analyst/run").then(({ ingestTextDocument }) =>
-      ingestTextDocument(doc, {
-        docId: doc.name,
-        company: deriveCompany(doc.name),
-        period: "",
-      })
+    void import("~/pilot/analyst/run").then(({ ingestTextDocument, enqueueIngest }) =>
+      enqueueIngest(() =>
+        ingestTextDocument(doc, { docId: doc.name, company: deriveCompany(doc.name), period: "" })
+      )
     )
   }
 
@@ -355,6 +361,12 @@ export function describeUpload(r: {
   if (tooLarge.length) {
     parts.push(
       `${tooLarge.map((f) => f.name).join(", ")} is over ${MAX_FILE_LABEL}, too big to analyse. Try a smaller export.`
+    )
+  }
+  const unsupported = r.files.filter((f) => f.outcome === "unsupported")
+  if (unsupported.length) {
+    parts.push(
+      `${unsupported.map((f) => f.name).join(", ")} is a legacy .doc, which can't be read. Save it as .docx or PDF and re-upload.`
     )
   }
   if (r.skippedImages) {

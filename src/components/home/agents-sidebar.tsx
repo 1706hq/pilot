@@ -262,6 +262,7 @@ function AddContextButton() {
         ref={inputRef}
         type="file"
         multiple
+        accept=".pdf,.xlsx,.xls,.xlsm,.csv,.tsv,.docx,.txt,.md"
         className="hidden"
         onChange={(e) => {
           if (e.target.files?.length) {

@@ -131,6 +131,7 @@ export function ReferenceComposer({
             ref={fileRef}
             type="file"
             multiple
+            accept=".pdf,.xlsx,.xls,.xlsm,.csv,.tsv,.docx,.txt,.md"
             className="hidden"
             onChange={(e) => {
               onAttach(e.target.files)

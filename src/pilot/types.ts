@@ -57,6 +57,9 @@ export interface Ingest {
   total: number
   /** Grounded figures extracted, set when ready. */
   figures?: number
+  /** Pages/sheets/sections that could not be read (so partial data isn't
+   *  presented as complete). Surfaced on the ready card when > 0. */
+  missed?: number
   error?: string
   startedAt: number
   readyAt?: number
