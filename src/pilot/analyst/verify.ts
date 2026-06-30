@@ -12,16 +12,11 @@
  * "totals reconcile" criterion checks.)
  */
 
+import { findCol, isActual, isBudget, isVsBud, isVsBudPct } from "~/pilot/analyst/columns"
 import type { AuditFlag, Cell, ExtractedPage } from "~/pilot/analyst/types"
 
 function n(cell: Cell | undefined): number | undefined {
   return cell && typeof cell.value === "number" ? cell.value : undefined
-}
-function find(cells: Cell[], must: string[], not: string[] = []): Cell | undefined {
-  return cells.find((c) => {
-    const k = c.column.toLowerCase()
-    return must.every((m) => k.includes(m)) && not.every((x) => !k.includes(x))
-  })
 }
 
 const CHANNELS = ["retail", "ecomm", "e-comm", "marketplaces", "marketplace"]
@@ -46,10 +41,10 @@ export function reconcile(pages: ExtractedPage[]): Reconciliation {
 
       for (const row of table.rows ?? []) {
         const cells = row.cells ?? []
-        const act = n(find(cells, ["act"]))
-        const bud = n(find(cells, ["bud"], ["vs", "%"]))
-        const vsBud = n(find(cells, ["vs bud"], ["%"]))
-        const vsBudPct = n(find(cells, ["bud", "%"]))
+        const act = n(findCol(cells, isActual))
+        const bud = n(findCol(cells, isBudget))
+        const vsBud = n(findCol(cells, isVsBud))
+        const vsBudPct = n(findCol(cells, isVsBudPct))
         const label = (row.label || "").toLowerCase()
 
         // Check 1: Act − Bud = vsBud.

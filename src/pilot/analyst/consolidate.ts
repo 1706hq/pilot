@@ -10,6 +10,15 @@
  * `metric` and emit one LedgerRecord per dimension row.
  */
 
+import {
+  findCol,
+  isActual,
+  isBudget,
+  isLflPct,
+  isVsBud,
+  isVsBudPct,
+  isVsLY,
+} from "~/pilot/analyst/columns"
 import type {
   Cell,
   Entity,
@@ -49,14 +58,6 @@ export function resolveUnit(metric: string, label: string, explicit: Unit): Unit
   return null
 }
 
-/** Find the cell whose column matches all `must` substrings and none of `not`. */
-function pick(cells: Cell[], must: string[], not: string[] = []): Cell | undefined {
-  return cells.find((c) => {
-    const k = c.column.toLowerCase()
-    return must.every((m) => k.includes(m)) && not.every((n) => !k.includes(n))
-  })
-}
-
 export interface Consolidated {
   ledger: LedgerRecord[]
   narrative: NarrativeItem[]
@@ -92,19 +93,23 @@ export function consolidate(pages: ExtractedPage[]): Consolidated {
           if (row.label?.trim()) metric = row.label.trim()
           continue
         }
-        const act = pick(cells, ["act"]) ?? pick(cells, ["actual"])
-        const bud = pick(cells, ["bud"], ["vs", "%"])
-        const vsBudCell = pick(cells, ["vs bud"], ["%"])
-        const vsBudPctCell = pick(cells, ["bud", "%"])
-        const vsLYCell = pick(cells, ["ly"], ["%"]) ?? pick(cells, ["lfl"], ["%"])
-        const lflPctCell = pick(cells, ["lfl", "%"])
-        // Headline value: Actual if present, else the first numeric cell.
+        const act = findCol(cells, isActual)
+        const bud = findCol(cells, isBudget)
+        const vsBudCell = findCol(cells, isVsBud)
+        const vsBudPctCell = findCol(cells, isVsBudPct)
+        const vsLYCell = findCol(cells, isVsLY)
+        const lflPctCell = findCol(cells, isLflPct)
+        // Headline value: prefer the explicit Actual/outturn column. Only fall
+        // back to the first numeric cell when there's no Actual — and when we do,
+        // lower confidence, because that cell could be a budget or a variance,
+        // not the real value (the chat/analysis then treats it cautiously).
         const firstNum = cells.find((c) => typeof c.value === "number")
-        const value = num(act) ?? num(firstNum)
+        const valueCell = act ?? firstNum
+        const value = num(valueCell)
         if (value === undefined) continue
         const dim = row.label?.trim() || "—"
         // Infer the unit honestly — never default a count/ratio/£ value to "£k".
-        const unit: Unit = resolveUnit(metric, dim, (act ?? firstNum)?.unit ?? null)
+        const unit: Unit = resolveUnit(metric, dim, valueCell?.unit ?? null)
         if (CHANNELS.includes(dim.toLowerCase())) addEntity("channel", dim)
         else addEntity("category", dim)
 
@@ -121,7 +126,7 @@ export function consolidate(pages: ExtractedPage[]): Consolidated {
           lflPct: num(lflPctCell),
           table: table.title,
           sourcePage: page.sourcePage,
-          confidence: 1,
+          confidence: act ? 1 : 0.7,
         })
       }
     }
