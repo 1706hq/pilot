@@ -146,6 +146,25 @@ function fmt(r: LedgerRecord): string {
 }
 
 /**
+ * Validate a model-claimed source filename against the documents we ACTUALLY
+ * hold, returning the real docId or undefined. So a chart/dashboard's "From your
+ * upload" provenance badge can never cite a document we don't have, or sit on
+ * invented figures with a fabricated filename. Tolerant of paraphrase (the model
+ * may say "AGT Trade Pack" for "FY27 Wk19 AGT Trade Pack.pdf").
+ */
+export function verifiedSource(claimed: string | undefined): string | undefined {
+  if (!claimed) return undefined
+  const strip = (s: string) => s.toLowerCase().replace(/\.(pdf|xlsx?|csv|tsv|docx?)$/g, "").trim()
+  const c = strip(claimed)
+  if (!c) return undefined
+  for (const kb of listKnowledgeBases()) {
+    const d = strip(kb.docId)
+    if (d && (d === c || d.includes(c) || c.includes(d))) return kb.docId
+  }
+  return undefined
+}
+
+/**
  * Build a compact, CITED context block for a query from all stored KBs. Keyword
  * scoring over metric/dimension/grain; returns the top records + relevant
  * insights + pre-answered Q&A, each tagged with its source page.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { retrieveContext, analysedCompanies } from "./store"
+import { retrieveContext, analysedCompanies, verifiedSource } from "./store"
 
 /**
  * Guards the exact regression that shipped to Peter in v0.4.0: company scoping
@@ -34,6 +34,19 @@ describe("retrieveContext company scoping", () => {
     // questions aren't answered blind.
     const out = retrieveContext("American Golf sales vs last year")
     expect(out).toContain("vsLY")
+  })
+})
+
+describe("verifiedSource (chart provenance badge)", () => {
+  it("accepts a paraphrase of a real document and returns the real filename", () => {
+    // The seed holds "FY27 Wk19 AGT Trade Pack.pdf".
+    expect(verifiedSource("AGT Trade Pack")).toContain("AGT Trade Pack")
+  })
+
+  it("rejects a document we don't hold (no false 'from your upload' badge)", () => {
+    expect(verifiedSource("Made Up Co accounts.pdf")).toBeUndefined()
+    expect(verifiedSource("")).toBeUndefined()
+    expect(verifiedSource(undefined)).toBeUndefined()
   })
 })
 

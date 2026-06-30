@@ -7,7 +7,7 @@
  * tool and the text path's render_ui tool.
  */
 
-import { retrieveContext } from "~/pilot/analyst/store"
+import { retrieveContext, verifiedSource } from "~/pilot/analyst/store"
 import { webSearch } from "~/pilot/agents/web"
 import { openrouterContent } from "~/pilot/agents/openrouter"
 import { getModel } from "~/pilot/storage/config"
@@ -174,10 +174,11 @@ export async function generateCanvas(
     const parsed = JSON.parse(stripFences(content)) as Record<string, unknown>
     const body = coerce(parsed)
     if (!body) return null
-    const source =
-      typeof parsed.source === "string" && parsed.source.trim()
-        ? parsed.source.trim()
-        : undefined
+    // Only show a provenance badge we can VERIFY against a real analysed document
+    // — never a filename the model paraphrased or invented.
+    const source = verifiedSource(
+      typeof parsed.source === "string" ? parsed.source.trim() : undefined
+    )
     return { body, source }
   } catch {
     return null
