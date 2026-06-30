@@ -2,6 +2,16 @@
 
 Notes for the team on what shipped in each release. Newest first.
 
+## v0.4.2 — comprehensive accuracy, charts & upload pass (+ a test safety net)
+
+A full review of every key area, with fixes verified by an automated test suite and a CI gate that now runs on every push (so regressions are caught before release, not by Peter).
+
+- **Safety net**: Vitest suite covering the failure classes that kept biting (retrieval/company scoping, unit resolution, validation flags, chart formatting, column classification, source verification); a CI workflow runs typecheck + tests + build on every push and PR.
+- **Accuracy**: word-boundary column matching shared by consolidate and verify, so a month column ("July") is no longer read as year-on-year and a bare "Budget %" is no longer read as a variance; the headline value prefers an explicit Actual column and lowers confidence when it has to guess; year-on-year (vsLY) figures are no longer dropped from chat answers.
+- **Charts**: now show real Y-axis values and per-bar labels formatted as number/currency/percent (they previously showed no numbers at all); negative values (declines, under budget) render correctly from a zero baseline; the "from your upload" badge is verified against documents we actually hold.
+- **Voice**: answers then waits — no more asking Peter questions during silence (server-side turn-taking + prompt).
+- **Uploads**: pages/sheets that can't be read are counted and surfaced ("X parts couldn't be read") instead of presenting partial data as complete; a global queue processes one document at a time so dropping several files doesn't trip rate limits; legacy .doc is called out clearly; file pickers filter to supported types.
+
 ## v0.4.1 — hotfix: restore data retrieval (regression in v0.4.0)
 
 v0.4.0's new company scoping had a matching bug that made PILOT act as if it had no data. When a question named a company we DO hold (e.g. "how is American Golf doing?"), the scope filter compared the canonical name "american golf" against the stored company field "American Golf (AGT)" with an exact match, which never matched, so it filtered the data out and PILOT said it had nothing. Any query naming American Golf (and any freshly uploaded company, once named) hit this.
