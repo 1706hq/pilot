@@ -33,7 +33,7 @@ function num(c: Cell | undefined): number | undefined {
  * the labels, and when genuinely unclear leave it null (a plain number) rather
  * than guessing money.
  */
-function resolveUnit(metric: string, label: string, explicit: Unit): Unit {
+export function resolveUnit(metric: string, label: string, explicit: Unit): Unit {
   if (explicit) return explicit
   const t = `${metric} ${label}`.toLowerCase()
   // Percentages / rates / points — never money.

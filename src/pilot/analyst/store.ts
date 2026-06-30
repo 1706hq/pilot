@@ -140,6 +140,7 @@ function fmt(r: LedgerRecord): string {
   if (r.bud !== undefined) p.push(`bud ${r.bud}`)
   if (r.vsBud !== undefined) p.push(`vsBud ${r.vsBud}`)
   if (r.vsBudPct !== undefined) p.push(`vsBud ${r.vsBudPct}%`)
+  if (r.vsLY !== undefined) p.push(`vsLY ${r.vsLY}`)
   if (r.lflPct !== undefined) p.push(`LFL ${r.lflPct}%`)
   return `${r.metric} · ${r.dimension} · ${r.grain}: ${p.join(", ")} [p${r.sourcePage}]`
 }
