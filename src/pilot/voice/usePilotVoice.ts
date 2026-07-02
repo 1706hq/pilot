@@ -10,7 +10,7 @@
  * Must be used inside a <ConversationProvider> (see VoiceProvider).
  */
 
-import { useCallback, useEffect } from "react"
+import { useCallback, useEffect, useRef } from "react"
 import {
   useConversationClientTool,
   useConversationControls,
@@ -135,12 +135,31 @@ export function usePilotVoice() {
     return "Cleared the Runway."
   })
 
+  // Connection timing — measured, not guessed. Logged on every session so a
+  // "voice is slow" report can be diagnosed from the console: was it the token,
+  // the WebRTC handshake, or time-to-first-word (agent/TTS side)?
+  const connectT0 = useRef<number | null>(null)
+  const loggedConnect = useRef(false)
+
   // Drive the Orb from the conversation state.
   useEffect(() => {
     if (status === "connecting") setPilotState("connecting")
-    else if (status === "connected")
+    else if (status === "connected") {
+      if (connectT0.current !== null) {
+        const ms = Math.round(performance.now() - connectT0.current)
+        if (!loggedConnect.current) {
+          loggedConnect.current = true
+          // eslint-disable-next-line no-console
+          console.info(`[pilot-voice] connected in ${ms}ms`)
+        }
+        if (isSpeaking) {
+          // eslint-disable-next-line no-console
+          console.info(`[pilot-voice] first word at ${ms}ms`)
+          connectT0.current = null
+        }
+      }
       setPilotState(isSpeaking ? "speaking" : "listening")
-    else setPilotState("idle")
+    } else setPilotState("idle")
   }, [status, isSpeaking, setPilotState])
 
   // Keep the bridge populated so context uploads can push into a live session.
@@ -173,11 +192,15 @@ export function usePilotVoice() {
       return
     }
     setPilotState("connecting")
+    connectT0.current = performance.now()
+    loggedConnect.current = false
     try {
       const token = await fetchConversationToken(
         config.elevenLabsAgentId,
         config.elevenLabsKey
       )
+      // eslint-disable-next-line no-console
+      console.info(`[pilot-voice] token in ${Math.round(performance.now() - connectT0.current)}ms`)
       // Inject a fresh, witty opener each session via the {{greeting}} dynamic
       // variable, plus what PILOT already knows: BLACKBOX-analysed documents
       // (the pre-loaded packs) first, then any files Peter has uploaded.
