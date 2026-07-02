@@ -72,7 +72,7 @@ const URGENCY_BY_KIND: Record<string, BriefUrgency> = {
 const KIND_RANK: Record<string, number> = { risk: 0, opportunity: 1, movement: 2 }
 
 /** Route an insight to the CREW member whose domain it sits in. */
-function agentForText(text: string): AgentId {
+export function agentForText(text: string): AgentId {
   const t = text.toLowerCase()
   if (/margin|cash|p&l|profit|budget|revenue|sales|invoice|ebitda|forecast|£|risk/.test(t))
     return "STERLING"

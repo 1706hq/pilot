@@ -29,6 +29,9 @@ import { UpdatePrompt } from "~/pilot/update/UpdatePrompt"
 import { UploadStatus } from "~/components/home/upload-status"
 import { MobileTopBar, MobileRunway } from "~/components/home/mobile-chrome"
 import { DevStatePanel } from "~/components/home/dev-state-panel"
+import { CheckInOverlay } from "~/components/home/check-in"
+import { checkinShownToday } from "~/pilot/checkin/checkin"
+import { hasKnowledge } from "~/pilot/analyst/store"
 
 /** Smooth opacity reveal used by the staged launch sequence. */
 function reveal(visible: boolean) {
@@ -53,6 +56,18 @@ export default function Home() {
     // Pull any analysis done on his other devices (no-op if sync isn't set up).
     void import("~/pilot/sync/sync").then((m) => m.syncKnowledge())
   }, [])
+
+  // The morning ritual: once the HUD has revealed, open the CREW check-in —
+  // once per day, and only when there's a key and analysed data behind it (a
+  // first run goes to Settings instead, an empty store has nothing to report).
+  useEffect(() => {
+    if (phase < 3) return
+    const { config, settingsOpen } = usePilotStore.getState()
+    if (!config.openRouterKey || settingsOpen) return
+    if (!hasKnowledge() || checkinShownToday()) return
+    const t = setTimeout(() => usePilotStore.getState().setCheckinOpen(true), 1600)
+    return () => clearTimeout(t)
+  }, [phase])
 
   // Keep the on-screen salutation honest to the time of day. Peter leaves PILOT
   // open for hours, so a greeting picked once at launch reads "Good morning" all
@@ -135,6 +150,7 @@ export default function Home() {
       </div>
 
       <SettingsModal />
+      <CheckInOverlay />
       <UploadStatus />
       <MobileTopBar className={reveal(phase >= 3)} />
       <MobileRunway />
@@ -204,6 +220,21 @@ function HomeView({ greeting, phase }: { greeting: Greeting; phase: number }) {
           reveal(phase >= 3)
         )}
       />
+
+      {/* CREW check-in trigger — the morning ritual, always reachable. Sits
+          top-left under the telemetry strip, clear of the wordmark and the
+          composer at every width. */}
+      <button
+        type="button"
+        onClick={() => usePilotStore.getState().setCheckinOpen(true)}
+        className={cn(
+          "absolute left-5 top-[44px] z-30 hidden items-center gap-2 rounded-full border border-sky-400/20 bg-sky-500/[0.07] px-3.5 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.22em] text-sky-200/75 backdrop-blur-sm transition hover:border-sky-400/45 hover:bg-sky-500/[0.14] hover:text-sky-100 md:flex",
+          reveal(phase >= 3)
+        )}
+      >
+        <span className="size-1 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,151,255,0.9)]" />
+        Crew check-in
+      </button>
 
       {/* Market conditions (VIX → flying conditions) — ambient telemetry off to
           the top-right, clear of the centred wordmark. Hidden on narrower
