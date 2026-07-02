@@ -61,6 +61,15 @@ const TOOLS = [
   {
     type: "function",
     function: {
+      name: "market_brief",
+      description:
+        "FALCON's full market brief: fetches LIVE levels and moves for Peter's watchlist (FTSE, S&P, GBP/USD, Bitcoin, Gold, Brent by default), the stories moving markets, and the line that matters for his day — and renders it as a dashboard on the Runway. Call this when Peter asks for a market brief, pre-market brief, market wrap, 'how are markets', 'what are markets doing', or a FALCON report. For a SINGLE price question use web_search instead.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "clear_canvas",
       description:
         "Clear/empty the canvas (the Runway — the panel to Peter's right): removes all cards, dashboards, invoices and files. You MUST call this tool to actually clear it — never just say you've cleared it without calling it. Call it whenever Peter says clear/wipe/empty/reset/get rid of the canvas, the Runway, the screen, or these, or says 'start fresh'.",
@@ -186,6 +195,10 @@ export async function sendMessage(text: string, agentOverride?: AgentId) {
               result = lastWebResult
               searched = true
             }
+          } else if (tc.function.name === "market_brief") {
+            const { runMarketBrief } = await import("~/pilot/falcon/falcon")
+            result = await runMarketBrief()
+            lastCanvasResult = result
           } else if (tc.function.name === "clear_canvas") {
             usePilotStore.getState().clearWidgets()
             result = "Cleared the Runway."

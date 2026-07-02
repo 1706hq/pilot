@@ -116,4 +116,6 @@ export interface PilotConfig {
   syncUrl?: string
   /** Bearer token for the sync store. */
   syncToken?: string
+  /** FALCON watchlist override, comma-separated (e.g. "FTSE 100, Tesla, Bitcoin"). */
+  watchlist?: string
 }

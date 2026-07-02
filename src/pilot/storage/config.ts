@@ -25,6 +25,7 @@ const ENV: Partial<PilotConfig> = {
   elevenLabsAgentId: process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ID,
   porcupineKey: process.env.NEXT_PUBLIC_PICOVOICE_KEY,
   model: process.env.NEXT_PUBLIC_OPENROUTER_MODEL,
+  watchlist: process.env.NEXT_PUBLIC_PILOT_WATCHLIST,
   syncUrl: process.env.NEXT_PUBLIC_PILOT_SYNC_URL,
   syncToken: process.env.NEXT_PUBLIC_PILOT_SYNC_TOKEN,
 }

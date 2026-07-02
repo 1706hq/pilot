@@ -59,17 +59,28 @@ interface JsonOpts {
   signal?: AbortSignal
 }
 
+/** URL citation annotation attached by the OpenRouter web plugin. */
+export interface UrlAnnotation {
+  type?: string
+  url_citation?: { url?: string; title?: string }
+}
+
+export interface ChatMessageResult {
+  content: string
+  annotations: UrlAnnotation[]
+}
+
 /**
- * Non-streaming chat completion. Returns `choices[0].message.content` (a string,
- * usually JSON when the caller set response_format). Timeout + retry cover the
- * whole request including reading the body. Throws after exhausting retries, or
- * immediately on a non-retryable status / the caller's abort.
+ * Non-streaming chat completion returning the full message (content + any
+ * web-plugin source annotations). Timeout + retry cover the whole request
+ * including reading the body. Throws after exhausting retries, or immediately
+ * on a non-retryable status / the caller's abort.
  */
-export async function openrouterContent(
+export async function openrouterMessage(
   apiKey: string,
   body: Record<string, unknown>,
   opts: JsonOpts = {}
-): Promise<string> {
+): Promise<ChatMessageResult> {
   const { timeoutMs = 90_000, retries = 3, signal } = opts
   let lastErr: unknown
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -97,13 +108,14 @@ export async function openrouterContent(
         throw new Error(`OpenRouter ${res.status}: ${detail.slice(0, 160)}`)
       }
       const data = (await res.json()) as {
-        choices?: { message?: { content?: string } }[]
+        choices?: { message?: { content?: string; annotations?: UrlAnnotation[] } }[]
       }
       clearTimeout(timer)
       signal?.removeEventListener("abort", onAbort)
-      const content = data?.choices?.[0]?.message?.content
+      const msg = data?.choices?.[0]?.message
+      const content = msg?.content
       if (typeof content !== "string" || !content) throw new Error("empty response")
-      return content
+      return { content, annotations: msg?.annotations ?? [] }
     } catch (e) {
       clearTimeout(timer)
       signal?.removeEventListener("abort", onAbort)
@@ -116,6 +128,18 @@ export async function openrouterContent(
     }
   }
   throw lastErr instanceof Error ? lastErr : new Error("OpenRouter request failed")
+}
+
+/**
+ * Non-streaming chat completion. Returns `choices[0].message.content` (a string,
+ * usually JSON when the caller set response_format). See openrouterMessage.
+ */
+export async function openrouterContent(
+  apiKey: string,
+  body: Record<string, unknown>,
+  opts: JsonOpts = {}
+): Promise<string> {
+  return (await openrouterMessage(apiKey, body, opts)).content
 }
 
 interface StreamOpts {

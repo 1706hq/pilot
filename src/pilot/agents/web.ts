@@ -10,18 +10,9 @@
  * tool. Returns the answer text plus the source citations OpenRouter attached.
  */
 
+import { openrouterMessage } from "~/pilot/agents/openrouter"
 import { getModel } from "~/pilot/storage/config"
 import { usePilotStore } from "~/pilot/state/store"
-
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
-
-interface Annotation {
-  type?: string
-  url_citation?: { url?: string; title?: string }
-}
-interface Resp {
-  choices?: { message?: { content?: string; annotations?: Annotation[] } }[]
-}
 
 export interface WebResult {
   text: string
@@ -31,6 +22,8 @@ export interface WebResult {
 /**
  * Search the live web and return a concise answer. `spoken: true` returns a
  * single sentence for the voice path; otherwise a short, specific written answer.
+ * Rides the resilient OpenRouter layer (timeout + retry) — a hung search used
+ * to stall the whole tool round.
  */
 export async function webSearch(
   query: string,
@@ -42,15 +35,9 @@ export async function webSearch(
     ? "You are PILOT, briefing Peter Jones out loud. Using the live web results, answer in ONE concise spoken British-English sentence, leading with the key figure or fact. No preamble, don't read URLs aloud."
     : "You are PILOT, answering Peter Jones with current information from the live web results. Lead with the figure or answer, then a line of context. Concise, specific, British English."
   try {
-    const res = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${config.openRouterKey}`,
-        "HTTP-Referer": "https://pilot.local",
-        "X-Title": "PILOT",
-      },
-      body: JSON.stringify({
+    const { content, annotations } = await openrouterMessage(
+      config.openRouterKey,
+      {
         model: getModel(),
         // OpenRouter's web plugin augments the model with live search results.
         plugins: [{ id: "web", max_results: 5 }],
@@ -59,14 +46,12 @@ export async function webSearch(
           { role: "user", content: query },
         ],
         temperature: 0.3,
-      }),
-    })
-    if (!res.ok) return null
-    const data = (await res.json()) as Resp
-    const msg = data.choices?.[0]?.message
-    const text = msg?.content?.trim()
+      },
+      { timeoutMs: 45_000, retries: 2 }
+    )
+    const text = content.trim()
     if (!text) return null
-    const sources = (msg?.annotations ?? [])
+    const sources = annotations
       .filter((a) => a.type === "url_citation" && a.url_citation?.url)
       .map((a) => ({ title: a.url_citation?.title, url: a.url_citation?.url }))
     return { text, sources }
