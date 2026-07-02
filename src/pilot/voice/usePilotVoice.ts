@@ -27,21 +27,22 @@ import { usePilotStore } from "~/pilot/state/store"
 import type { AgentId } from "~/pilot/types"
 
 /**
- * Map a crew name onto our roster (just STERLING + MARSHALL). The agent now
- * speaks those two names; legacy CAPITAL/CONTROL/etc. are still tolerated so an
- * older tool call doesn't fall through to PILOT.
+ * Map a spoken crew name onto the roster (the full eight-agent CREW). Legacy
+ * CAPITAL/CONTROL/etc. are still tolerated so an older tool call doesn't fall
+ * through to PILOT.
  */
 function mapCrew(name: string): { agent: AgentId; label: string } {
   const key = name.trim().toUpperCase()
   if (key === "STERLING" || key === "CAPITAL")
     return { agent: "STERLING", label: "Sterling" }
-  if (
-    key === "MARSHALL" ||
-    key === "CONTROL" ||
-    key === "COURSE" ||
-    key === "CREW CHIEF"
-  )
+  if (key === "MARSHALL" || key === "CONTROL" || key === "COURSE" || key === "CREW CHIEF")
     return { agent: "MARSHALL", label: "Marshall" }
+  if (key === "SPARK") return { agent: "SPARK", label: "Spark" }
+  if (key === "SHIELD") return { agent: "SHIELD", label: "Shield" }
+  if (key === "SCOUT") return { agent: "SCOUT", label: "Scout" }
+  if (key === "PEGASUS") return { agent: "PEGASUS", label: "Pegasus" }
+  if (key === "HERCULES") return { agent: "HERCULES", label: "Hercules" }
+  if (key === "FALCON") return { agent: "FALCON", label: "Falcon" }
   return { agent: "PILOT", label: "PILOT" }
 }
 

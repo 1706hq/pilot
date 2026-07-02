@@ -52,7 +52,7 @@ function AgentRow({ agent, active }: { agent: AgentMeta; active: boolean }) {
       )}
     >
       <span
-        className="grid size-12 shrink-0 place-items-center rounded-lg text-[18px] font-semibold transition-all"
+        className="grid size-9 shrink-0 place-items-center rounded-lg text-[12px] font-semibold tracking-tight transition-all"
         style={{
           color: agent.accent,
           backgroundColor: `${agent.accent}1f`,
@@ -368,7 +368,7 @@ export function AgentsSidebar() {
         <ExpandLabel className="px-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-white/35">
           Crew
         </ExpandLabel>
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
           {CREW.map((agent) => (
             <AgentRow
               key={agent.id}

@@ -10,8 +10,19 @@ export type PilotState =
   | "speaking"
   | "thinking"
 
-/** The orchestrator plus the two v1 CREW agents. Agents are personas, not processes. */
-export type AgentId = "PILOT" | "STERLING" | "MARSHALL"
+/** The orchestrator plus the full CREW — Peter's eight C-suite agents (per the
+ *  PILOT ecosystem doc). Agents are personas, not processes: each carries its
+ *  own domain, accent and honest capability boundary. */
+export type AgentId =
+  | "PILOT"
+  | "STERLING" // CFO — finance
+  | "MARSHALL" // COO — operations
+  | "SPARK" // CMO — brand & marketing
+  | "SHIELD" // CLO — legal & compliance
+  | "SCOUT" // CPO — people & talent
+  | "PEGASUS" // CSO — strategy & deals
+  | "HERCULES" // personal wellness
+  | "FALCON" // personal markets & trading
 
 export type ChatRole = "user" | "assistant" | "system" | "tool"
 

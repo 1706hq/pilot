@@ -44,10 +44,67 @@ export const AGENTS: Record<AgentId, AgentMeta> = {
     accent: "#d4ff58",
     monogram: "M",
   },
+  SPARK: {
+    id: "SPARK",
+    name: "SPARK",
+    role: "CMO · Brand",
+    blurb: "Brand and press intelligence. Drafts content for approval.",
+    accent: "#ff8f3b",
+    monogram: "SP",
+  },
+  SHIELD: {
+    id: "SHIELD",
+    name: "SHIELD",
+    role: "CLO · Legal",
+    blurb: "Contracts, deadlines and compliance. Flags what needs a signature.",
+    accent: "#a78bfa",
+    monogram: "SH",
+  },
+  SCOUT: {
+    id: "SCOUT",
+    name: "SCOUT",
+    role: "CPO · People",
+    blurb: "Talent intelligence, interview briefs and key-person risk.",
+    accent: "#f9a8d4",
+    monogram: "SC",
+  },
+  PEGASUS: {
+    id: "PEGASUS",
+    name: "PEGASUS",
+    role: "CSO · Strategy",
+    blurb: "Deal flow, pitch screening and market opportunities.",
+    accent: "#7ef29b",
+    monogram: "PG",
+  },
+  HERCULES: {
+    id: "HERCULES",
+    name: "HERCULES",
+    role: "Wellness",
+    blurb: "Training, recovery and health. Keeps the operator sharp.",
+    accent: "#ff5c7a",
+    monogram: "H",
+  },
+  FALCON: {
+    id: "FALCON",
+    name: "FALCON",
+    role: "Markets",
+    blurb: "Live markets, positions and pre-market briefs. The fastest hunter.",
+    accent: "#ffd60a",
+    monogram: "F",
+  },
 }
 
 /** The CREW agents that appear in the roster (excludes the PILOT orchestrator). */
-export const CREW: AgentMeta[] = [AGENTS.STERLING, AGENTS.MARSHALL]
+export const CREW: AgentMeta[] = [
+  AGENTS.STERLING,
+  AGENTS.MARSHALL,
+  AGENTS.SPARK,
+  AGENTS.SHIELD,
+  AGENTS.SCOUT,
+  AGENTS.PEGASUS,
+  AGENTS.HERCULES,
+  AGENTS.FALCON,
+]
 
 export function agentAccent(agent: AgentId | undefined): string {
   return AGENTS[agent ?? "PILOT"].accent
