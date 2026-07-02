@@ -3,13 +3,19 @@
 /**
  * Radar — the cockpit "sonar" instrument layered behind the CoreOrb: concentric
  * rings (some full, some broken into arcs / half-rings), a tick-mark ring, a
- * dashed ring, a dotted ring, a crosshair, and a slow gold sweep. Purely
- * decorative (no pointer events). The palette tracks `pilotState`; the sweep is
- * gold while resting, like a radar trail.
+ * dashed ring, a dotted ring, a crosshair, and a slow gold sweep. The palette
+ * tracks `pilotState`; the sweep is gold while resting, like a radar trail.
+ *
+ * CREW blips: live tasks appear ON the instrument as pings in the owning
+ * agent's colour — STERLING reading a pack is a teal contact, FALCON sweeping
+ * markets a gold one. Theatre that is also a status display: the radar shows
+ * who's actually working. Position is a stable hash of the task id, so a blip
+ * doesn't wander between renders.
  *
  * Cheap by design — SVG strokes plus one transform-rotated conic gradient.
  */
 
+import { AGENTS } from "~/pilot/agents/agents"
 import { usePilotStore } from "~/pilot/state/store"
 import { glowVisual } from "~/pilot/state/visuals"
 import { cn } from "~/lib/utils"
@@ -34,9 +40,55 @@ function arc(r: number, start: number, end: number): string {
   return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`
 }
 
+/** Small stable hash so each task keeps its spot on the scope. */
+function hash(s: string): number {
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0
+  return Math.abs(h)
+}
+
+/** A CREW contact on the scope — working tasks ping, fresh finishes glow. */
+function Blip({ id, agent, working }: { id: string; agent: keyof typeof AGENTS; working: boolean }) {
+  const accent = AGENTS[agent].accent
+  const h = hash(id)
+  const deg = h % 360
+  const radius = 34 + (h % 52) // between the dotted ring and the tick gauge
+  const [x, y] = pol(radius, deg)
+  return (
+    <div
+      className="absolute"
+      style={{ left: `${x / 2}%`, top: `${y / 2}%`, transform: "translate(-50%, -50%)" }}
+    >
+      {working ? (
+        <span
+          className="absolute inset-0 -m-1 animate-ping rounded-full"
+          style={{ backgroundColor: `${accent}55` }}
+        />
+      ) : null}
+      <span
+        className="relative block size-[5px] rounded-full"
+        style={{
+          backgroundColor: accent,
+          boxShadow: `0 0 8px ${accent}cc`,
+          opacity: working ? 1 : 0.55,
+        }}
+      />
+    </div>
+  )
+}
+
 export function Radar({ className }: { className?: string }) {
   const pilotState = usePilotStore((s) => s.pilotState)
+  const tasks = usePilotStore((s) => s.tasks)
   const { glowColor } = glowVisual(pilotState)
+
+  // CREW contacts: everything working now, plus the freshest recent finishes
+  // (capped so the scope reads as an instrument, not confetti).
+  const working = tasks.filter((t) => t.status === "working").slice(-4)
+  const recent = tasks
+    .filter((t) => t.status === "done" && Date.now() - t.startedAt < 120_000)
+    .slice(-3)
+  const blips = [...working, ...recent]
 
   const ring = hsla(glowColor, 0.5)
   const faint = hsla(glowColor, 0.26)
@@ -118,6 +170,11 @@ export function Radar({ className }: { className?: string }) {
             animation: "radar-sweep 8s linear infinite",
           }}
         />
+
+        {/* CREW contacts — agent-coloured pings for live work. */}
+        {blips.map((t) => (
+          <Blip key={t.id} id={t.id} agent={t.agent} working={t.status === "working"} />
+        ))}
       </div>
     </div>
   )

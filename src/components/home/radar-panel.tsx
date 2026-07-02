@@ -24,25 +24,28 @@ import { cn } from "~/lib/utils"
 
 const KIND: Record<
   RadarKind,
-  { label: string; dot: string; text: string; ring: string }
+  { label: string; dot: string; text: string; ring: string; rail: string }
 > = {
   turbulence: {
     label: "Turbulence",
     dot: "bg-amber-400",
     text: "text-amber-300/90",
     ring: "group-hover:border-amber-400/30",
+    rail: "#fbbf24",
   },
   tailwind: {
     label: "Tailwind",
     dot: "bg-emerald-400",
     text: "text-emerald-300/90",
     ring: "group-hover:border-emerald-400/30",
+    rail: "#34d399",
   },
   signal: {
     label: "Signal",
     dot: "bg-sky-400",
     text: "text-sky-300/90",
     ring: "group-hover:border-sky-400/30",
+    rail: "#38bdf8",
   },
 }
 
@@ -53,11 +56,17 @@ function ReadingCard({ r }: { r: RadarReading }) {
       type="button"
       onClick={() => sendMessage(r.prompt)}
       className={cn(
-        "group w-full rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-left backdrop-blur-sm transition hover:bg-white/[0.06]",
+        "group relative w-full overflow-hidden rounded-2xl border border-white/8 bg-white/[0.03] px-4 py-3 text-left backdrop-blur-sm transition hover:bg-white/[0.06]",
         k.ring
       )}
     >
-      <div className="flex items-center gap-2">
+      {/* Kind rail — same visual language as the check-in decision cards. */}
+      <span
+        aria-hidden
+        className="absolute inset-y-0 left-0 w-[2.5px]"
+        style={{ backgroundColor: k.rail, opacity: 0.75 }}
+      />
+      <div className="flex items-center gap-2 pl-1.5">
         <span className={cn("size-1.5 rounded-full", k.dot)} style={{ boxShadow: "0 0 8px currentColor" }} />
         <span className={cn("text-[10px] font-semibold uppercase tracking-[0.14em]", k.text)}>
           {k.label}
@@ -66,11 +75,11 @@ function ReadingCard({ r }: { r: RadarReading }) {
           Tap to explore
         </span>
       </div>
-      <div className="mt-1.5 text-[14px] font-semibold leading-snug text-white/90">
+      <div className="mt-1.5 pl-1.5 text-[14px] font-semibold leading-snug text-white/90">
         {r.headline}
       </div>
       {r.detail ? (
-        <p className="mt-1 text-[12px] leading-relaxed text-white/50">{r.detail}</p>
+        <p className="mt-1 pl-1.5 text-[12px] leading-relaxed text-white/50">{r.detail}</p>
       ) : null}
     </button>
   )

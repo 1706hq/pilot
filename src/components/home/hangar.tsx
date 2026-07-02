@@ -131,8 +131,8 @@ export function HangarOverlay() {
                         </span>
                       ) : null}
                     </div>
-                    <div className="mt-0.5 flex items-center gap-2 font-mono text-[9.5px] uppercase tracking-[0.12em] text-white/35">
-                      <span className="truncate">{kb.company}</span>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 font-mono text-[9.5px] uppercase tracking-[0.12em] text-white/35">
+                      <span>{kb.company}</span>
                       {kb.period ? <span className="text-white/20">· {kb.period}</span> : null}
                       <span className="text-white/20">· {age(kb.builtAt)}</span>
                       <span className="text-white/20">

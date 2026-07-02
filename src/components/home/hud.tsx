@@ -28,12 +28,16 @@ export function Wordmark({ className }: { className?: string }) {
   const letters = ["P", "I", "L", "O", "T"]
   return (
     <div className={cn("pointer-events-none select-none text-center", className)}>
-      <div className="flex items-baseline justify-center font-semibold uppercase leading-none text-[#5aa2ff] [text-shadow:0_0_26px_rgba(56,151,255,0.6)]">
+      <div className="wordmark-breathe flex items-baseline justify-center font-semibold uppercase leading-none text-[#5aa2ff]">
         {letters.map((ch, i) => (
           <span key={ch} className="flex items-baseline">
             <span className="text-[32px] tracking-[0.06em]">{ch}</span>
             {i < letters.length - 1 ? (
-              <span aria-hidden className="mx-[3px] text-[32px] leading-none text-[#5aa2ff]/45">
+              <span
+                aria-hidden
+                className="hud-breathe mx-[3px] text-[32px] leading-none text-[#5aa2ff]/70"
+                style={{ animationDelay: `${i * 0.7}s` }}
+              >
                 .
               </span>
             ) : null}
@@ -42,6 +46,14 @@ export function Wordmark({ className }: { className?: string }) {
       </div>
       <div className="mt-[8px] whitespace-nowrap text-[8px] font-semibold uppercase tracking-[0.12em] text-amber-300/90 [text-shadow:0_0_12px_rgba(252,211,77,0.45)] md:text-[9.5px] md:tracking-[0.3em]">
         Peter&apos;s Intelligent Life Operating Terminal
+      </div>
+      {/* Boot line — types out once when the HUD reveals, holds, then fades.
+          Pure CSS, so it costs nothing once it's gone. */}
+      <div
+        aria-hidden
+        className="boot-line mx-auto mt-[7px] whitespace-nowrap font-mono text-[8.5px] uppercase tracking-[0.26em] text-sky-300/60"
+      >
+        All systems online · crew of 8 standing by
       </div>
     </div>
   )
