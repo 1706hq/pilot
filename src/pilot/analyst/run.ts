@@ -9,6 +9,7 @@
 import { analyze, critique, ANALYSIS_MODEL, type AnalysisResult } from "~/pilot/analyst/analyze"
 import { consolidate, type Consolidated } from "~/pilot/analyst/consolidate"
 import { looksLikePitch, screenPitch } from "~/pilot/analyst/pitch"
+import { looksLikeContract, reviewContract } from "~/pilot/analyst/shield"
 import { validateLedger } from "~/pilot/analyst/validate"
 import { syncKnowledge } from "~/pilot/sync/sync"
 import { extractPage, extractSheet, extractDocChunk, VISION_MODEL } from "~/pilot/analyst/extract"
@@ -158,12 +159,17 @@ export async function ingestDocument(file: File, meta: IngestMeta): Promise<Know
     setIngest({ phase: "analysing" })
     const final = await analyseBestEffort(consolidated, apiKey, setLabel)
 
-    // PEGASUS — if this reads like a pitch deck, screen it over the SAME
-    // verified evidence. Best-effort: a failed screen never fails the upload.
+    // Specialist passes over the SAME verified evidence — PEGASUS for a pitch
+    // deck, SHIELD for a contract (mutually exclusive; pitch wins a tie).
+    // Best-effort: a failed pass never fails the upload.
     let pitch: KnowledgeBase["pitch"]
+    let contract: KnowledgeBase["contract"]
     if (looksLikePitch(file.name, pages)) {
       setLabel("PEGASUS · screening the pitch")
       pitch = (await screenPitch(pages, consolidated, apiKey)) ?? undefined
+    } else if (looksLikeContract(file.name, pages)) {
+      setLabel("SHIELD · reviewing the contract")
+      contract = (await reviewContract(pages, apiKey)) ?? undefined
     }
 
     // Stage 6 — store.
@@ -180,22 +186,27 @@ export async function ingestDocument(file: File, meta: IngestMeta): Promise<Know
       qa: final.qa,
       flags: [...rec.flags, ...validation.flags, ...coverageFlag(missed, images.length, "pages")],
       pitch,
+      contract,
       builtAt: Date.now(),
     }
     saveKnowledgeBase(kb)
     void syncKnowledge() // share the result to Peter's other devices (no-op if off)
 
-    // A screened pitch lands as PEGASUS's verdict card on the Runway.
+    // Specialist verdicts land as their agent's card on the Runway.
     if (pitch) {
       usePilotStore.getState().addWidget({ type: "pitch", ...pitch }, "PEGASUS", meta.docId)
+    } else if (contract) {
+      usePilotStore.getState().addWidget({ type: "contract", ...contract }, "SHIELD", meta.docId)
     }
 
     usePilotStore.getState().updateTask(taskId, {
       status: "done",
-      ...(pitch ? { agent: "PEGASUS" as const } : {}),
+      ...(pitch ? { agent: "PEGASUS" as const } : contract ? { agent: "SHIELD" as const } : {}),
       label: pitch
         ? `PEGASUS · ${kb.company} screened (${pitch.score}/5)`
-        : `BLACKBOX · ${meta.company} ready (${rec.passed}/${rec.checks} reconciled)`,
+        : contract
+          ? `SHIELD · ${contract.title.slice(0, 40)} reviewed`
+          : `BLACKBOX · ${meta.company} ready (${rec.passed}/${rec.checks} reconciled)`,
     })
     setIngest({ phase: "ready", figures: kb.ledger.length, missed, readyAt: Date.now() })
     usePilotStore
@@ -203,7 +214,9 @@ export async function ingestDocument(file: File, meta: IngestMeta): Promise<Know
       .setNotice(
         pitch
           ? `PEGASUS screened the ${kb.company} pitch — verdict is on the Runway (${pitch.score}/5).`
-          : `Analysed ${meta.company}: ${kb.ledger.length} figures, ${kb.insights.length} insights${missed > 0 ? `. ${missed} of ${images.length} pages couldn't be read` : ""}.`
+          : contract
+            ? `SHIELD reviewed ${contract.title} — dates and risks are on the Runway.`
+            : `Analysed ${meta.company}: ${kb.ledger.length} figures, ${kb.insights.length} insights${missed > 0 ? `. ${missed} of ${images.length} pages couldn't be read` : ""}.`
       )
     return kb
   } catch (e) {
@@ -407,6 +420,14 @@ export async function ingestTextDocument(
     setIngest({ phase: "analysing" })
     const final = await analyseBestEffort(consolidated, apiKey, setLabel)
 
+    // SHIELD — contracts usually arrive as Word documents. Same verified
+    // evidence, best-effort: a failed review never fails the upload.
+    let contract: KnowledgeBase["contract"]
+    if (looksLikeContract(file.name, pages)) {
+      setLabel("SHIELD · reviewing the contract")
+      contract = (await reviewContract(pages, apiKey)) ?? undefined
+    }
+
     const kb: KnowledgeBase = {
       docId: meta.docId,
       company: meta.company,
@@ -419,20 +440,30 @@ export async function ingestTextDocument(
       insights: final.insights,
       qa: final.qa,
       flags: [...rec.flags, ...validation.flags, ...coverageFlag(missed, chunks.length, "sections")],
+      contract,
       builtAt: Date.now(),
     }
     saveKnowledgeBase(kb)
     void syncKnowledge() // share the result to Peter's other devices (no-op if off)
 
+    if (contract) {
+      usePilotStore.getState().addWidget({ type: "contract", ...contract }, "SHIELD", meta.docId)
+    }
+
     usePilotStore.getState().updateTask(taskId, {
       status: "done",
-      label: `BLACKBOX · ${meta.company} ready (${kb.ledger.length} figures)`,
+      ...(contract ? { agent: "SHIELD" as const } : {}),
+      label: contract
+        ? `SHIELD · ${contract.title.slice(0, 40)} reviewed`
+        : `BLACKBOX · ${meta.company} ready (${kb.ledger.length} figures)`,
     })
     setIngest({ phase: "ready", figures: kb.ledger.length, missed, readyAt: Date.now() })
     usePilotStore
       .getState()
       .setNotice(
-        `${meta.company} is analysed and ready: ${kb.insights.length} insights, ${kb.ledger.length} figures${missed > 0 ? `. ${missed} of ${chunks.length} sections couldn't be read` : ""}.`
+        contract
+          ? `SHIELD reviewed ${contract.title} — dates and risks are on the Runway.`
+          : `${meta.company} is analysed and ready: ${kb.insights.length} insights, ${kb.ledger.length} figures${missed > 0 ? `. ${missed} of ${chunks.length} sections couldn't be read` : ""}.`
       )
     return kb
   } catch (e) {

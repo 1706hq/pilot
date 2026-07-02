@@ -123,6 +123,19 @@ export interface DocumentSpec {
   body: string
 }
 
+/** SHIELD's contract review — parties, binding dates with computed urgency,
+ *  obligations and risks. Built by the analyst pipeline (never by the LLM
+ *  widget generator) over the verified extraction. */
+export interface ContractSpec {
+  type: "contract"
+  title: string
+  parties: string[]
+  summary: string
+  dates: { label: string; date: string; note?: string }[]
+  obligations: string[]
+  risks: string[]
+}
+
 /** PEGASUS's pitch-deck screen — the Dragon's verdict card. Built by the
  *  analyst pipeline (never by the LLM widget generator), so its figures come
  *  from the verified extraction. */
@@ -155,6 +168,7 @@ export type WidgetBody =
   | InvoiceSpec
   | DocumentSpec
   | PitchSpec
+  | ContractSpec
 
 /** A fully-realised widget held in the store (body + stamped meta). */
 export type WidgetSpec = WidgetBody & WidgetMeta

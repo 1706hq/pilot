@@ -226,12 +226,24 @@ export function retrieveContext(query: string, maxRecords = 40): string {
         (kb.pitch.questions.length ? `Questions for the founder: ${kb.pitch.questions.join("; ")}` : "")
       : ""
 
+    // Same for SHIELD's contract review — dates, obligations and risks.
+    const contract = kb.contract
+      ? `\n\nSHIELD CONTRACT REVIEW — ${kb.contract.title} (${kb.contract.parties.join(" / ")})\n` +
+        `${kb.contract.summary}\n` +
+        (kb.contract.dates.length
+          ? `Dates that bind: ${kb.contract.dates.map((d) => `${d.label}: ${d.date}${d.note ? ` (${d.note})` : ""}`).join("; ")}\n`
+          : "") +
+        (kb.contract.obligations.length ? `Obligations: ${kb.contract.obligations.join("; ")}\n` : "") +
+        (kb.contract.risks.length ? `Risks: ${kb.contract.risks.join("; ")}` : "")
+      : ""
+
     blocks.push(
       `### ${kb.company} — ${kb.period} (from ${kb.docId})\n` +
         `FIGURES (each cited to a source page):\n${chosen.map((x) => fmt(x.r)).join("\n")}` +
         (insights.length ? `\n\nINSIGHTS:\n${insights.join("\n")}` : "") +
         (qa.length ? `\n\nRELEVANT Q&A:\n${qa.join("\n")}` : "") +
-        pitch
+        pitch +
+        contract
     )
   }
   return blocks.join("\n\n")
@@ -257,9 +269,16 @@ export function knowledgeSummary(maxChars = 3500): string {
     const pitchLine = kb.pitch
       ? `PEGASUS pitch screen: ${kb.pitch.score}/5 — ${kb.pitch.verdict} Ask: ${kb.pitch.ask}.\n`
       : ""
+    const contractLine = kb.contract
+      ? `SHIELD contract review: ${kb.contract.title} — ${kb.contract.summary} Key dates: ${kb.contract.dates
+          .slice(0, 3)
+          .map((d) => `${d.label} ${d.date}`)
+          .join("; ")}.\n`
+      : ""
     return (
       `### ${kb.company} — ${kb.period}\n` +
       pitchLine +
+      contractLine +
       (kb.summary ? `${kb.summary}\n` : "") +
       (insights.length ? `Top insights:\n${insights.join("\n")}\n` : "") +
       (totals.length ? `Headline figures:\n${totals.join("\n")}` : "")

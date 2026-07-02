@@ -133,5 +133,14 @@ export interface KnowledgeBase {
     concerns: string[]
     questions: string[]
   }
+  /** SHIELD's review, present when the document was detected as a contract. */
+  contract?: {
+    title: string
+    parties: string[]
+    summary: string
+    dates: { label: string; date: string; note?: string }[]
+    obligations: string[]
+    risks: string[]
+  }
   builtAt: number
 }

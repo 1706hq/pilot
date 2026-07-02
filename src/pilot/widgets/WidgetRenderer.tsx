@@ -20,6 +20,7 @@ import {
 import { InvoiceCard } from "~/pilot/widgets/invoice"
 import { DocumentCard } from "~/pilot/widgets/document"
 import { PitchCard } from "~/pilot/widgets/pitch"
+import { ContractCard } from "~/pilot/widgets/contract"
 import type {
   FileCardSpec,
   InnerWidgetSpec,
@@ -125,6 +126,8 @@ export function WidgetCard({
       <Frame agent={widget.agent}>
         {widget.type === "pitch" ? (
           <PitchCard spec={widget} />
+        ) : widget.type === "contract" ? (
+          <ContractCard spec={widget} />
         ) : widget.type === "document" ? (
           <DocumentCard spec={widget} />
         ) : widget.type === "dashboard" ? (
