@@ -123,6 +123,23 @@ export interface DocumentSpec {
   body: string
 }
 
+/** PEGASUS's pitch-deck screen — the Dragon's verdict card. Built by the
+ *  analyst pipeline (never by the LLM widget generator), so its figures come
+ *  from the verified extraction. */
+export interface PitchSpec {
+  type: "pitch"
+  company: string
+  oneLiner: string
+  ask: string
+  sector: string
+  /** Dragon score 1–5. */
+  score: number
+  verdict: string
+  strengths: string[]
+  concerns: string[]
+  questions: string[]
+}
+
 /** Widgets allowed inside a dashboard (everything except nested dashboards). */
 export type InnerWidgetSpec =
   | StatCardSpec
@@ -137,6 +154,7 @@ export type WidgetBody =
   | DashboardSpec
   | InvoiceSpec
   | DocumentSpec
+  | PitchSpec
 
 /** A fully-realised widget held in the store (body + stamped meta). */
 export type WidgetSpec = WidgetBody & WidgetMeta

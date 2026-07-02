@@ -120,5 +120,18 @@ export interface KnowledgeBase {
   qa: QAEntry[]
   /** Pages/fields flagged by the auditor or self-critique — the honesty trail. */
   flags: AuditFlag[]
+  /** PEGASUS's screen, present when the document was detected as a pitch deck.
+   *  (Type kept structural here to avoid a circular import with pitch.ts.) */
+  pitch?: {
+    company: string
+    oneLiner: string
+    ask: string
+    sector: string
+    score: number
+    verdict: string
+    strengths: string[]
+    concerns: string[]
+    questions: string[]
+  }
   builtAt: number
 }

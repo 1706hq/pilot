@@ -217,11 +217,21 @@ export function retrieveContext(query: string, maxRecords = 40): string {
       .slice(0, 4)
       .map((x) => `Q: ${x.e.question ?? ""}\nA: ${x.e.answer ?? ""}${cites(x.e.citations)}`)
 
+    // A screened pitch travels with its company's block, so "what did PEGASUS
+    // think of X?" answers from the stored verdict, cited like everything else.
+    const pitch = kb.pitch
+      ? `\n\nPEGASUS PITCH SCREEN (${kb.pitch.score}/5): ${kb.pitch.verdict}\n` +
+        `The ask: ${kb.pitch.ask}\n` +
+        (kb.pitch.concerns.length ? `Concerns: ${kb.pitch.concerns.join("; ")}\n` : "") +
+        (kb.pitch.questions.length ? `Questions for the founder: ${kb.pitch.questions.join("; ")}` : "")
+      : ""
+
     blocks.push(
       `### ${kb.company} — ${kb.period} (from ${kb.docId})\n` +
         `FIGURES (each cited to a source page):\n${chosen.map((x) => fmt(x.r)).join("\n")}` +
         (insights.length ? `\n\nINSIGHTS:\n${insights.join("\n")}` : "") +
-        (qa.length ? `\n\nRELEVANT Q&A:\n${qa.join("\n")}` : "")
+        (qa.length ? `\n\nRELEVANT Q&A:\n${qa.join("\n")}` : "") +
+        pitch
     )
   }
   return blocks.join("\n\n")
@@ -244,8 +254,12 @@ export function knowledgeSummary(maxChars = 3500): string {
     const insights = (kb.insights ?? [])
       .slice(0, 3)
       .map((i) => `- ${i.headline ?? i.detail ?? ""}${cites(i.citations)}`)
+    const pitchLine = kb.pitch
+      ? `PEGASUS pitch screen: ${kb.pitch.score}/5 — ${kb.pitch.verdict} Ask: ${kb.pitch.ask}.\n`
+      : ""
     return (
       `### ${kb.company} — ${kb.period}\n` +
+      pitchLine +
       (kb.summary ? `${kb.summary}\n` : "") +
       (insights.length ? `Top insights:\n${insights.join("\n")}\n` : "") +
       (totals.length ? `Headline figures:\n${totals.join("\n")}` : "")

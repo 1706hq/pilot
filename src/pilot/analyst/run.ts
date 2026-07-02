@@ -8,6 +8,7 @@
 
 import { analyze, critique, ANALYSIS_MODEL, type AnalysisResult } from "~/pilot/analyst/analyze"
 import { consolidate, type Consolidated } from "~/pilot/analyst/consolidate"
+import { looksLikePitch, screenPitch } from "~/pilot/analyst/pitch"
 import { validateLedger } from "~/pilot/analyst/validate"
 import { syncKnowledge } from "~/pilot/sync/sync"
 import { extractPage, extractSheet, extractDocChunk, VISION_MODEL } from "~/pilot/analyst/extract"
@@ -157,10 +158,18 @@ export async function ingestDocument(file: File, meta: IngestMeta): Promise<Know
     setIngest({ phase: "analysing" })
     const final = await analyseBestEffort(consolidated, apiKey, setLabel)
 
+    // PEGASUS — if this reads like a pitch deck, screen it over the SAME
+    // verified evidence. Best-effort: a failed screen never fails the upload.
+    let pitch: KnowledgeBase["pitch"]
+    if (looksLikePitch(file.name, pages)) {
+      setLabel("PEGASUS · screening the pitch")
+      pitch = (await screenPitch(pages, consolidated, apiKey)) ?? undefined
+    }
+
     // Stage 6 — store.
     const kb: KnowledgeBase = {
       docId: meta.docId,
-      company: meta.company,
+      company: pitch?.company || meta.company,
       period: meta.period,
       ledger: consolidated.ledger,
       narrative: consolidated.narrative,
@@ -170,20 +179,31 @@ export async function ingestDocument(file: File, meta: IngestMeta): Promise<Know
       insights: final.insights,
       qa: final.qa,
       flags: [...rec.flags, ...validation.flags, ...coverageFlag(missed, images.length, "pages")],
+      pitch,
       builtAt: Date.now(),
     }
     saveKnowledgeBase(kb)
     void syncKnowledge() // share the result to Peter's other devices (no-op if off)
 
+    // A screened pitch lands as PEGASUS's verdict card on the Runway.
+    if (pitch) {
+      usePilotStore.getState().addWidget({ type: "pitch", ...pitch }, "PEGASUS", meta.docId)
+    }
+
     usePilotStore.getState().updateTask(taskId, {
       status: "done",
-      label: `BLACKBOX · ${meta.company} ready (${rec.passed}/${rec.checks} reconciled)`,
+      ...(pitch ? { agent: "PEGASUS" as const } : {}),
+      label: pitch
+        ? `PEGASUS · ${kb.company} screened (${pitch.score}/5)`
+        : `BLACKBOX · ${meta.company} ready (${rec.passed}/${rec.checks} reconciled)`,
     })
     setIngest({ phase: "ready", figures: kb.ledger.length, missed, readyAt: Date.now() })
     usePilotStore
       .getState()
       .setNotice(
-        `Analysed ${meta.company}: ${kb.ledger.length} figures, ${kb.insights.length} insights${missed > 0 ? `. ${missed} of ${images.length} pages couldn't be read` : ""}.`
+        pitch
+          ? `PEGASUS screened the ${kb.company} pitch — verdict is on the Runway (${pitch.score}/5).`
+          : `Analysed ${meta.company}: ${kb.ledger.length} figures, ${kb.insights.length} insights${missed > 0 ? `. ${missed} of ${images.length} pages couldn't be read` : ""}.`
       )
     return kb
   } catch (e) {
