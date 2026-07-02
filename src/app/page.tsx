@@ -30,6 +30,7 @@ import { UploadStatus } from "~/components/home/upload-status"
 import { MobileTopBar, MobileRunway } from "~/components/home/mobile-chrome"
 import { DevStatePanel } from "~/components/home/dev-state-panel"
 import { CheckInOverlay } from "~/components/home/check-in"
+import { HangarOverlay } from "~/components/home/hangar"
 import { checkinShownToday } from "~/pilot/checkin/checkin"
 import { hasKnowledge } from "~/pilot/analyst/store"
 
@@ -151,6 +152,7 @@ export default function Home() {
 
       <SettingsModal />
       <CheckInOverlay />
+      <HangarOverlay />
       <UploadStatus />
       <MobileTopBar className={reveal(phase >= 3)} />
       <MobileRunway />
@@ -221,20 +223,28 @@ function HomeView({ greeting, phase }: { greeting: Greeting; phase: number }) {
         )}
       />
 
-      {/* CREW check-in trigger — the morning ritual, always reachable. Sits
-          top-left under the telemetry strip, clear of the wordmark and the
-          composer at every width. */}
-      <button
-        type="button"
-        onClick={() => usePilotStore.getState().setCheckinOpen(true)}
-        className={cn(
-          "absolute left-5 top-[44px] z-30 hidden items-center gap-2 rounded-full border border-sky-400/20 bg-sky-500/[0.07] px-3.5 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.22em] text-sky-200/75 backdrop-blur-sm transition hover:border-sky-400/45 hover:bg-sky-500/[0.14] hover:text-sky-100 md:flex",
-          reveal(phase >= 3)
-        )}
+      {/* HUD verbs — the morning ritual + the document library, always
+          reachable. Top-left under the telemetry strip, clear of the wordmark
+          and the composer at every width. */}
+      <div
+        className={cn("absolute left-5 top-[44px] z-30 hidden items-center gap-2 md:flex", reveal(phase >= 3))}
       >
-        <span className="size-1 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,151,255,0.9)]" />
-        Crew check-in
-      </button>
+        <button
+          type="button"
+          onClick={() => usePilotStore.getState().setCheckinOpen(true)}
+          className="flex items-center gap-2 rounded-full border border-sky-400/20 bg-sky-500/[0.07] px-3.5 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.22em] text-sky-200/75 backdrop-blur-sm transition hover:border-sky-400/45 hover:bg-sky-500/[0.14] hover:text-sky-100"
+        >
+          <span className="size-1 rounded-full bg-sky-400 shadow-[0_0_8px_rgba(56,151,255,0.9)]" />
+          Crew check-in
+        </button>
+        <button
+          type="button"
+          onClick={() => usePilotStore.getState().setHangarOpen(true)}
+          className="flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-1.5 font-mono text-[9.5px] uppercase tracking-[0.22em] text-white/55 backdrop-blur-sm transition hover:border-white/25 hover:bg-white/[0.08] hover:text-white/85"
+        >
+          Hangar
+        </button>
+      </div>
 
       {/* Market conditions (VIX → flying conditions) — ambient telemetry off to
           the top-right, clear of the centred wordmark. Hidden on narrower

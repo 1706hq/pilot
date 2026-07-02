@@ -45,11 +45,14 @@ interface PilotStore {
   settingsOpen: boolean
   /** Whether the morning CHECK-IN ritual overlay is open. */
   checkinOpen: boolean
+  /** Whether the HANGAR (document library) overlay is open. */
+  hangarOpen: boolean
 
   setVoiceError: (msg: string | null) => void
   setNotice: (msg: string | null) => void
   setSettingsOpen: (open: boolean) => void
   setCheckinOpen: (open: boolean) => void
+  setHangarOpen: (open: boolean) => void
   setPilotState: (s: PilotState) => void
   setActiveAgent: (a: AgentId) => void
 
@@ -91,11 +94,13 @@ export const usePilotStore = create<PilotStore>((set) => ({
   notice: null,
   settingsOpen: false,
   checkinOpen: false,
+  hangarOpen: false,
 
   setVoiceError: (voiceError) => set({ voiceError }),
   setNotice: (notice) => set({ notice }),
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
   setCheckinOpen: (checkinOpen) => set({ checkinOpen }),
+  setHangarOpen: (hangarOpen) => set({ hangarOpen }),
   setPilotState: (pilotState) => set({ pilotState }),
   setActiveAgent: (activeAgent) => set({ activeAgent }),
 
